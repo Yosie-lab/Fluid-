@@ -506,13 +506,21 @@ function getAudioCtx() {
 function unlockAudio() {
   const ctx = getAudioCtx();
   if (ctx) {
+    if (ctx.state === 'running') return;
+
+    // 1. 同期的コールスタック内でまずダミー音（オシレーター）を再生
+    playDummySound(ctx);
+
+    // 2. その後、同期的コールスタック内で resume() を呼び出す
     if (ctx.state === 'suspended') {
-      ctx.resume().catch(err => {
+      ctx.resume().then(() => {
+        removeUnlockListeners();
+      }).catch(err => {
         console.error("Audio Context Resume Failed:", err);
       });
+    } else {
+      removeUnlockListeners();
     }
-    playDummySound(ctx);
-    removeUnlockListeners();
   }
 }
 
@@ -569,8 +577,11 @@ function startFlowNoise() {
   };
 
   if (ctx.state === 'suspended') {
+    // 同期的にアンロック処理（オシレーター再生 → resume() のシーケンス）を開始
+    unlockAudio();
+
+    // レジュームが完了した時点で、まだタッチ中であれば再生を開始する
     ctx.resume().then(() => {
-      // レジュームが完了した時点で、まだタッチ中であれば再生を開始する
       if (isPointerDown) {
         _play();
       }
@@ -580,8 +591,6 @@ function startFlowNoise() {
   } else {
     _play();
   }
-
-  removeUnlockListeners();
 }
 
 function stopFlowNoise() {
