@@ -1254,8 +1254,8 @@ function updateParticles(t, skin) {
       if (dist2 < currentRadius * currentRadius && dist2 > 1) {
         const dist  = Math.sqrt(dist2);
         const brake = dist < 20 ? (dist / 20) : 1;
-        const forceMultiplier = isPointerDown ? 2.8 : 1.2;
-        const force = (1 - dist / currentRadius) ** 1.6 * forceMultiplier * brake;
+        const forceMultiplier = isPointerDown ? 1.5 : 0.7;
+        const force = (1 - dist / currentRadius) ** 2.0 * forceMultiplier * brake;
         p.vx += (distX / dist) * force;
         p.vy += (distY / dist) * force;
         
