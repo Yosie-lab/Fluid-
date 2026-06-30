@@ -507,20 +507,12 @@ function unlockAudio() {
   const ctx = getAudioCtx();
   if (ctx) {
     if (ctx.state === 'suspended') {
-      ctx.resume().then(() => {
-        playDummySound(ctx);
-        removeUnlockListeners();
-        // アンロック完了時に、まだタッチ中であればサウンド再生を開始する
-        if (isPointerDown) {
-          startFlowNoise();
-        }
-      }).catch(err => {
+      ctx.resume().catch(err => {
         console.error("Audio Context Resume Failed:", err);
       });
-    } else {
-      playDummySound(ctx);
-      removeUnlockListeners();
     }
+    playDummySound(ctx);
+    removeUnlockListeners();
   }
 }
 
@@ -551,9 +543,10 @@ function startFlowNoise() {
   const ctx = getAudioCtx();
   if (!ctx) return;
 
-  if (ctx.state !== 'running') {
-    unlockAudio();
-    return; // アンロック処理を呼び出し、完了を待つために一旦抜ける
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(err => {
+      console.error("Audio Context Resume Failed:", err);
+    });
   }
 
   const bufSize = ctx.sampleRate * 2;
@@ -568,12 +561,15 @@ function startFlowNoise() {
   lpf.type = 'lowpass'; lpf.frequency.value = 900; lpf.Q.value = 0.4;
 
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0, ctx.currentTime);
-  gain.gain.linearRampToValueAtTime(0.045, ctx.currentTime + 0.35);
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.045, now + 0.35);
 
   src.connect(lpf); lpf.connect(gain); gain.connect(ctx.destination);
   src.start();
   flowNoiseSource = src; flowNoiseGain = gain; flowNoiseActive = true;
+
+  removeUnlockListeners();
 }
 
 function stopFlowNoise() {
