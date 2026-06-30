@@ -717,6 +717,68 @@ function playClearChord() {
   });
 }
 
+function playCarbonatedSound() {
+  if (!STATE.soundEnabled) return;
+  const ctx = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return;
+
+  const now = ctx.currentTime;
+
+  // 1. メインの「シュワー」というホワイトノイズによる泡立ち感
+  const sampleRate = ctx.sampleRate;
+  const duration = 4.5;
+  const bufferSize = sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.Q.value = 2.0;
+  filter.frequency.setValueAtTime(2500, now);
+  filter.frequency.exponentialRampToValueAtTime(8500, now + 3.5);
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.001, now);
+  gain.gain.exponentialRampToValueAtTime(0.35, now + 0.12);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 4.5);
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  noise.start(now);
+  noise.stop(now + 4.5);
+
+  // 2. 「パチパチ」と弾ける無数の細かな泡の音をランダムに散布
+  for (let i = 0; i < 80; i++) {
+    const delay = Math.random() * 4.0;
+    const time = now + delay;
+    
+    const bubbleOsc = ctx.createOscillator();
+    const bubbleGain = ctx.createGain();
+    
+    const freq = 4500 + Math.random() * 5500;
+    bubbleOsc.type = 'sine';
+    bubbleOsc.frequency.setValueAtTime(freq, time);
+    
+    const peakVol = (0.012 + Math.random() * 0.018) * (1 - delay / 4.0);
+    bubbleGain.gain.setValueAtTime(0, time);
+    bubbleGain.gain.linearRampToValueAtTime(peakVol, time + 0.002);
+    bubbleGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.01 + Math.random() * 0.03);
+    
+    bubbleOsc.connect(bubbleGain);
+    bubbleGain.connect(ctx.destination);
+    
+    bubbleOsc.start(time);
+    bubbleOsc.stop(time + 0.06);
+  }
+}
+
 /* ============================================================
    Vibration API ハプティクス
 ============================================================ */
@@ -1650,6 +1712,7 @@ function triggerClear() {
 
   stopFlowNoise();
   playClearChord();
+  playCarbonatedSound(); // 炭酸音を追加
   vibrateClear();
   particles.forEach(p => { p.life = 0.01; });
 
