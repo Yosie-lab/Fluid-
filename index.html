@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Fluid &amp; Crystal — 流体と結晶の癒しゲーム</title>
+  <meta name="description" content="光る流体を導き、結晶を育てる。脳を解放する究極の癒しゲーム Fluid &amp; Crystal。">
+  <!-- Google Fonts Outfit -->
+  <!-- TODO(security): CDN依存を削減するためにフォントをローカルホスティングに移行することを検討してください -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       デザインシステム & CSS 変数
+    ============================================================ */
+    :root {
+      --skin-fluid-a:   #00f5ff;
+      --skin-fluid-b:   #0080ff;
+      --skin-crystal-a: #ffffff;
+      --skin-crystal-b: #a8e6ff;
+      --skin-glow:      #00f5ff;
+      --skin-bg-a:      #000510;
+      --skin-bg-b:      #001830;
+      --skin-accent:    #00d4ff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--skin-bg-a);
+      font-family: 'Outfit', sans-serif;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    #gameCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      cursor: none;
+    }
+
+    /* ============================================================
+       UI オーバーレイ（極限まで引き算）
+    ============================================================ */
+    #ui {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #controls {
+      position: absolute;
+      top: 20px; right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: all;
+    }
+
+    .ctrl-btn {
+      width: 40px; height: 40px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+      color: rgba(255,255,255,0.5);
+      font-size: 16px;
+    }
+    .ctrl-btn:hover {
+      border-color: var(--skin-accent);
+      color: var(--skin-accent);
+      box-shadow: 0 0 16px var(--skin-accent)44;
+      transform: scale(1.06);
+    }
+    .ctrl-btn:active { transform: scale(0.94); }
+
+    /* ============================================================
+       カウントダウンリング（猶予期間UI）
+    ============================================================ */
+    #readyWrap {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      pointer-events: none;
+      z-index: 8;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    #readyWrap.show { opacity: 1; }
+
+    #readyRing {
+      position: relative;
+      width: 120px; height: 120px;
+    }
+    #readyRing svg {
+      width: 120px; height: 120px;
+      overflow: visible;
+    }
+    #readyLabel {
+      font-size: 11px;
+      font-weight: 200;
+      letter-spacing: 0.3em;
+      color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* ============================================================
+       スキン選択パネル（ボトムシート）
+    ============================================================ */
+    #skinPanel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(4, 10, 24, 0.96);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      border-radius: 24px 24px 0 0;
+      padding: 16px 20px 44px;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 100;
+      pointer-events: all;
+    }
+    #skinPanel.open { transform: translateY(0); }
+
+    .panel-handle {
+      width: 36px; height: 4px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 2px;
+      margin: 0 auto 18px;
+    }
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .skin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+    }
+
+    .skin-card {
+      border-radius: 14px;
+      padding: 14px 12px 12px;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.025);
+      position: relative;
+      overflow: hidden;
+    }
+    .skin-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--card-a, #00f5ff18), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .skin-card:hover { transform: translateY(-2px); }
+    .skin-card:hover::before { opacity: 1; }
+    .skin-card.active {
+      border-color: var(--card-a, #00f5ff);
+      box-shadow: 0 0 18px var(--card-a, #00f5ff)40;
+    }
+    .skin-card.locked { cursor: default; }
+    .skin-card.locked:hover { transform: none; }
+
+    .skin-preview {
+      width: 100%; aspect-ratio: 1.6;
+      border-radius: 8px;
+      margin-bottom: 9px;
+      position: relative;
+      overflow: hidden;
+    }
+    .skin-name {
+      font-size: 12px; font-weight: 300;
+      color: rgba(255,255,255,0.75);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .skin-price {
+      font-size: 11px; font-weight: 200;
+      color: rgba(255,255,255,0.35);
+      margin-top: 3px;
+    }
+    .lock-badge {
+      position: absolute;
+      top: 6px; right: 6px;
+      font-size: 13px;
+    }
+
+    /* ============================================================
+       クリアオーバーレイ
+    ============================================================ */
+    #clearOverlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.2s ease;
+      z-index: 50;
+    }
+    #clearOverlay.show { opacity: 1; pointer-events: all; }
+
+    .clear-text {
+      font-size: clamp(28px, 7vw, 58px);
+      font-weight: 200;
+      letter-spacing: 0.22em;
+      color: var(--skin-crystal-a);
+      text-shadow: 0 0 40px var(--skin-glow), 0 0 80px var(--skin-glow);
+      animation: clearPulse 2.4s ease-in-out infinite;
+    }
+    .clear-sub {
+      font-size: clamp(11px, 2.5vw, 14px);
+      font-weight: 200;
+      letter-spacing: 0.35em;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+    }
+    .clear-restart {
+      margin-top: 24px;
+      padding: 12px 36px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 50px;
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(16px);
+      color: rgba(255,255,255,0.65);
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 300;
+      letter-spacing: 0.18em;
+      cursor: pointer;
+      transition: border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .clear-restart:hover {
+      border-color: var(--skin-accent);
+      color: var(--skin-accent);
+      box-shadow: 0 0 28px var(--skin-accent)44;
+    }
+
+    @keyframes clearPulse {
+      0%, 100% { text-shadow: 0 0 40px var(--skin-glow), 0 0 80px var(--skin-glow); }
+      50%       { text-shadow: 0 0 60px var(--skin-glow), 0 0 130px var(--skin-glow), 0 0 220px var(--skin-glow); }
+    }
+
+    /* ============================================================
+       チュートリアルヒント
+    ============================================================ */
+    #hint {
+      position: fixed;
+      bottom: 56px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px; font-weight: 200;
+      letter-spacing: 0.22em;
+      color: rgba(255,255,255,0.28);
+      text-align: center;
+      pointer-events: none;
+      transition: opacity 1.2s ease;
+      white-space: nowrap;
+    }
+    #hint.hidden { opacity: 0; }
+
+    /* ============================================================
+       ローダー
+    ============================================================ */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: #000510;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      transition: opacity 0.8s ease;
+    }
+    #loader.done { opacity: 0; pointer-events: none; }
+    .loader-ring {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(0,245,255,0.15);
+      border-top-color: #00f5ff;
+      animation: spin 0.9s linear infinite;
+      box-shadow: 0 0 14px #00f5ff66;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* トースト用アニメーション */
+    @keyframes fadeInOut {
+      0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+      80%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ローダー -->
+<div id="loader" aria-hidden="true"><div class="loader-ring"></div></div>
+
+<!-- ゲームキャンバス -->
+<canvas id="gameCanvas" aria-label="Fluid and Crystal game canvas"></canvas>
+
+<!-- 最小UIオーバーレイ -->
+<div id="ui" role="complementary" aria-label="ゲームコントロール">
+  <div id="controls">
+    <button class="ctrl-btn" id="btnSkin" aria-label="スキンを変更" title="スキン変更">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <circle cx="8.5"  cy="9"    r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="15.5" cy="9"    r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="8"    cy="14.5" r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="16"   cy="14.5" r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="12"   cy="17"   r="1.5" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
+
+    <button class="ctrl-btn" id="btnSound" aria-label="サウンドをオン/オフ" title="サウンド切替">
+      <svg id="soundIconOn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+      <svg id="soundIconOff" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <line x1="23" y1="9" x2="17" y2="15"/>
+        <line x1="17" y1="9" x2="23" y2="15"/>
+      </svg>
+    </button>
+
+    <button class="ctrl-btn" id="btnReset" aria-label="リセット" title="リセット">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 .49-3"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- カウントダウンリング（猶予期間UI） -->
+<div id="readyWrap" aria-hidden="true">
+  <div id="readyRing">
+    <!-- SVGはJSで安全に生成 -->
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div id="readyLabel">流体を導こう</div>
+</div>
+
+<!-- スキン選択パネル -->
+<div id="skinPanel" role="dialog" aria-label="スキン選択" aria-hidden="true">
+  <div class="panel-handle"></div>
+  <p class="panel-title">テーマを選択</p>
+  <div class="skin-grid" id="skinGrid"></div>
+</div>
+
+<!-- クリアオーバーレイ -->
+<div id="clearOverlay" role="status" aria-live="polite">
+  <div class="clear-text">CRYSTAL BLOOM</div>
+  <div class="clear-sub">脳が解放される</div>
+  <button class="clear-restart" id="clearRestart" aria-label="もう一度プレイする">もう一度</button>
+</div>
+
+<!-- チュートリアルヒント -->
+<div id="hint" aria-label="操作ヒント">画面をなぞって光る流体を導こう</div>
+
+<script>
+/*
+ * TODO(security): 本番環境では以下の HTTP セキュリティヘッダーを設定してください:
+ *   Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{RANDOM}';
+ *                             font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com;
+ *   X-Frame-Options: DENY
+ *   X-Content-Type-Options: nosniff
+ *   Permissions-Policy: camera=(), microphone=(), geolocation=()
+ * インラインスクリプトを含むため nonce または hash ベースの CSP が必要です。
+ * TODO(security): 将来の課金機能には OAuth 2.0 プロバイダーを使用してください。
+ * TODO(security): ゲーム設定のみ localStorage に保存。機密情報は一切保存しません。
+ */
+'use strict';
+
+/* ============================================================
+   スキン定義（完全ホワイトリスト — ユーザー入力なし・XSS対策済み）
+============================================================ */
+const SKINS = [
+  {
+    id: 0, name: '💧 水 × クリスタル', price: 'FREE', locked: false,
+    fluidA: '#00f5ff', fluidB: '#0080ff',
+    crystalA: '#e0f8ff', crystalB: '#a8e6ff',
+    glow: '#00f5ff', bgA: '#000510', bgB: '#001830', accent: '#00d4ff',
+    soundFreq: 440,
+  },
+  {
+    id: 1, name: '🔥 溶岩 × 黒曜石', price: '¥200', locked: true,
+    fluidA: '#ff4500', fluidB: '#ff8c00',
+    crystalA: '#ffb347', crystalB: '#3d1500',
+    glow: '#ff4500', bgA: '#0a0200', bgB: '#1a0500', accent: '#ff6600',
+    soundFreq: 220,
+  },
+  {
+    id: 2, name: '🌌 星雲 × 星座', price: '¥300', locked: true,
+    fluidA: '#9d50ff', fluidB: '#4f0aff',
+    crystalA: '#ffe066', crystalB: '#ffffff',
+    glow: '#9d50ff', bgA: '#02000f', bgB: '#0a0030', accent: '#bb86fc',
+    soundFreq: 528,
+  },
+  {
+    id: 3, name: '🌸 桜 × 翡翠', price: '¥250', locked: true,
+    fluidA: '#ff80b0', fluidB: '#ffb3d1',
+    crystalA: '#50fa7b', crystalB: '#a8ffb8',
+    glow: '#ff80b0', bgA: '#080008', bgB: '#180010', accent: '#ff80b0',
+    soundFreq: 330,
+  },
+  {
+    id: 4, name: '⚡ 雷 × 霧氷', price: '¥400', locked: true,
+    fluidA: '#fff700', fluidB: '#ffd700',
+    crystalA: '#b0e8ff', crystalB: '#e8f8ff',
+    glow: '#fff700', bgA: '#000805', bgB: '#001015', accent: '#fff700',
+    soundFreq: 660,
+  },
+];
+
+/* ============================================================
+   ゲーム状態
+============================================================ */
+const STATE = {
+  skinId: 0,
+  soundEnabled: true,
+  phase: 'flow',
+};
+
+/* ポインターのアクティブ状態を管理するフラグ */
+let isPointerActive = false;
+
+
+/* localStorage から設定を安全に読み込む（数値のみ許可・XSS対策済み） */
+(function loadSettings() {
+  try {
+    const rawSkin = localStorage.getItem('fc_skinId');
+    if (rawSkin !== null) {
+      const parsed = parseInt(rawSkin, 10);
+      if (Number.isFinite(parsed) && parsed >= 0 && parsed < SKINS.length) {
+        STATE.skinId = parsed;
+      }
+    }
+    const rawSnd = localStorage.getItem('fc_sound');
+    if (rawSnd !== null) STATE.soundEnabled = rawSnd !== '0';
+  } catch (_) { /* localStorage 利用不可でも無視 */ }
+})();
+
+/* ============================================================
+   Web Audio API サウンドエンジン
+============================================================ */
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+let flowNoiseSource = null, flowNoiseGain = null, flowNoiseActive = false;
+
+function startFlowNoise() {
+  if (!STATE.soundEnabled || flowNoiseActive) return;
+  const ctx = getAudioCtx();
+  const bufSize = ctx.sampleRate * 2;
+  const buf  = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+
+  const src = ctx.createBufferSource();
+  src.buffer = buf; src.loop = true;
+
+  const lpf = ctx.createBiquadFilter();
+  lpf.type = 'lowpass'; lpf.frequency.value = 900; lpf.Q.value = 0.4;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.045, ctx.currentTime + 0.35);
+
+  src.connect(lpf); lpf.connect(gain); gain.connect(ctx.destination);
+  src.start();
+  flowNoiseSource = src; flowNoiseGain = gain; flowNoiseActive = true;
+}
+
+function stopFlowNoise() {
+  if (!flowNoiseActive || !flowNoiseGain) return;
+  const ctx = getAudioCtx();
+  flowNoiseGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.35);
+  setTimeout(() => {
+    try { flowNoiseSource.stop(); } catch (_) {}
+    flowNoiseActive = false;
+  }, 450);
+}
+
+function playCrystalSound(freq) {
+  if (!STATE.soundEnabled) return;
+  const ctx  = getAudioCtx();
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const lpf  = ctx.createBiquadFilter();
+  osc.type = 'sine'; osc.frequency.value = freq || SKINS[STATE.skinId].soundFreq;
+  lpf.type = 'lowpass'; lpf.frequency.value = 3200;
+  gain.gain.setValueAtTime(0.28, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+  osc.connect(lpf); lpf.connect(gain); gain.connect(ctx.destination);
+  osc.start(); osc.stop(ctx.currentTime + 0.7);
+}
+
+function playClearChord() {
+  if (!STATE.soundEnabled) return;
+  const ctx  = getAudioCtx();
+  const base = SKINS[STATE.skinId].soundFreq;
+  [1, 1.26, 1.5, 1.89, 2.0].forEach((ratio, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = base * ratio;
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.08 + i * 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 3.5);
+  });
+}
+
+/* ============================================================
+   Vibration API ハプティクス
+============================================================ */
+const vib = p => navigator.vibrate && navigator.vibrate(p);
+const vibrateFluid   = () => vib([4, 12, 4, 12, 4]);
+const vibrateCrystal = () => vib([28]);
+const vibrateClear   = () => vib([80, 40, 120]);
+
+/* ============================================================
+   スキン適用
+============================================================ */
+function applySkin(id) {
+  const skin = SKINS[id];
+  if (!skin) return;
+  STATE.skinId = id;
+  const r = document.documentElement.style;
+  r.setProperty('--skin-fluid-a',   skin.fluidA);
+  r.setProperty('--skin-fluid-b',   skin.fluidB);
+  r.setProperty('--skin-crystal-a', skin.crystalA);
+  r.setProperty('--skin-crystal-b', skin.crystalB);
+  r.setProperty('--skin-glow',      skin.glow);
+  r.setProperty('--skin-bg-a',      skin.bgA);
+  r.setProperty('--skin-bg-b',      skin.bgB);
+  r.setProperty('--skin-accent',    skin.accent);
+  try { localStorage.setItem('fc_skinId', String(id)); } catch (_) {}
+  resetGame();
+}
+
+/* ============================================================
+   スキンパネルUI構築（セキュア DOM 操作のみ）
+============================================================ */
+function buildSkinPanel() {
+  const grid = document.getElementById('skinGrid');
+  grid.replaceChildren(); /* セキュア: innerHTML = '' を使わない */
+
+  SKINS.forEach((skin, idx) => {
+    const card = document.createElement('div');
+    card.className = 'skin-card' + (skin.locked ? ' locked' : '') + (idx === STATE.skinId ? ' active' : '');
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', skin.name + ' ' + skin.price);
+    card.dataset.skinId = String(idx);
+    card.style.setProperty('--card-a', skin.fluidA);
+
+    /* プレビューキャンバス */
+    const preview = document.createElement('div');
+    preview.className = 'skin-preview';
+    const cvs = document.createElement('canvas');
+    cvs.width = 180; cvs.height = 112;
+    cvs.style.cssText = 'width:100%;height:100%;display:block;border-radius:7px;';
+    drawSkinPreview(cvs, skin);
+    preview.appendChild(cvs);
+
+    if (skin.locked) {
+      const lock = document.createElement('span');
+      lock.className = 'lock-badge';
+      lock.textContent = '🔒';
+      lock.setAttribute('aria-hidden', 'true');
+      preview.appendChild(lock);
+    }
+
+    const nameEl  = document.createElement('div');
+    nameEl.className = 'skin-name';
+    nameEl.textContent = skin.name; /* textContent で XSS 安全 */
+
+    const priceEl = document.createElement('div');
+    priceEl.className = 'skin-price';
+    priceEl.textContent = skin.price;
+
+    card.appendChild(preview);
+    card.appendChild(nameEl);
+    card.appendChild(priceEl);
+
+    card.addEventListener('click', () => {
+      if (skin.locked) { showToast(skin.name + ' — ' + skin.price + ' でご利用いただけます'); return; }
+      applySkin(idx);
+      document.querySelectorAll('.skin-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      closeSkinPanel();
+    });
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+function drawSkinPreview(canvas, skin) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, skin.bgA); bg.addColorStop(1, skin.bgB);
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  const gr = ctx.createRadialGradient(W*0.38, H*0.5, 0, W*0.38, H*0.5, W*0.38);
+  gr.addColorStop(0, skin.fluidA + 'cc'); gr.addColorStop(1, skin.fluidB + '00');
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.ellipse(W*0.38, H*0.5, W*0.33, H*0.38, 0, 0, Math.PI*2); ctx.fill();
+
+  ctx.strokeStyle = skin.crystalA + '80';
+  ctx.lineWidth = 1; ctx.shadowBlur = 8; ctx.shadowColor = skin.crystalA;
+  hexPath(ctx, W*0.72, H*0.42, 18); ctx.stroke();
+  hexPath(ctx, W*0.80, H*0.64, 11); ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function hexPath(ctx, cx, cy, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 3 * i - Math.PI / 6;
+    const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function showToast(text) {
+  const prev = document.getElementById('fc-toast');
+  if (prev) prev.remove();
+  const el = document.createElement('div');
+  el.id = 'fc-toast';
+  el.style.cssText = [
+    'position:fixed;bottom:320px;left:50%;transform:translateX(-50%);',
+    'background:rgba(0,0,0,0.88);border:1px solid rgba(255,255,255,0.12);',
+    'border-radius:12px;padding:11px 20px;',
+    'font-size:12px;font-weight:200;letter-spacing:0.06em;',
+    'color:rgba(255,255,255,0.75);z-index:201;pointer-events:none;',
+    'animation:fadeInOut 2.2s ease forwards;',
+  ].join('');
+  el.textContent = text; /* textContent で XSS 安全 */
+  document.body.appendChild(el);
+  setTimeout(() => { el.remove(); }, 2300);
+}
+
+/* ============================================================
+   パーティクル流体エンジン
+============================================================ */
+const canvas = document.getElementById('gameCanvas');
+const ctx2d  = canvas.getContext('2d');
+
+let W = 0, H = 0;
+let particles     = [];
+let crystalNuclei = [];
+let animId        = null;
+let rafReadyId    = null;
+
+let isPointerDown = false;
+let pointerX = 0, pointerY = 0;
+let lastPointerX = 0, lastPointerY = 0;
+let frameCount    = 0;
+let clearTriggered = false;
+let hasInteracted  = false; /* ユーザーが最初にクリック/タッチするまで結晶化させない */
+let lastActivationTime = 0; /* 最後に結晶核が活性化された時間（フレーム秒数） */
+
+/* ===== 猶予期間管理 ===== */
+let nucleiEnabled    = false;  /* true になるまで衝突判定しない */
+let graceStartTime   = 0;
+const GRACE_MS       = 3800;   /* 猶予時間 (ms) */
+
+/* ===== 定数 ===== */
+const MAX_PARTICLES       = 360;
+const PARTICLE_RADIUS     = 4;
+const INFLUENCE_RADIUS    = 150; // デフォルトの影響範囲を拡大
+const VISCOSITY           = 0.88;
+const CRYSTAL_STEP        = 36;
+const CRYSTAL_RADIUS      = 26;
+const NUCLEUS_COUNT       = 3;
+const NUCLEUS_SAFE_ZONE   = 180;
+const ACTIVATION_COOLDOWN = 1.8;
+
+/* ============================================================
+   リサイズ
+============================================================ */
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+/* ============================================================
+   Particle クラス
+============================================================ */
+class Particle {
+  constructor(x, y) {
+    this.x  = x ?? Math.random() * W;
+    this.y  = y ?? Math.random() * H;
+    this.vx = (Math.random() - 0.5) * 0.15;
+    this.vy = (Math.random() - 0.5) * 0.15;
+    this.life   = 0.55 + Math.random() * 0.45;
+    this.r      = PARTICLE_RADIUS * (0.5 + Math.random() * 0.8);
+    this.alpha  = 0;
+    this.phase  = Math.random() * Math.PI * 2;
+    this.frozen = false;
+    this.manipulated = false; // ポインターに操作されているかどうかのフラグ
+  }
+}
+
+/* ============================================================
+   CrystalNucleus クラス
+============================================================ */
+class CrystalNucleus {
+  constructor(x, y, freq) {
+    this.x = x; this.y = y; this.freq = freq;
+    this.activated   = false;
+    this.activatedAt = 0;
+    this.cells       = [];
+  }
+
+  activate(now) {
+    if (this.activated) return;
+    this.activated   = true;
+    this.activatedAt = now;
+    lastActivationTime = now; // クールダウン開始時刻を更新
+    vibrateCrystal();
+    playCrystalSound(this.freq);
+    this._spawnCells();
+  }
+
+  _spawnCells() {
+    const maxLayer = 20;
+    for (let layer = 0; layer <= maxLayer; layer++) {
+      const baseT = layer * 0.09;
+      if (layer === 0) {
+        this.cells.push({ x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, t: 0 });
+        continue;
+      }
+      [0, 60, 120, 180, 240, 300].forEach(deg => {
+        for (let i = 1; i <= layer; i++) {
+          const a1 = deg * Math.PI / 180;
+          const a2 = (deg + 60) * Math.PI / 180;
+          const bx = this.x + layer * CRYSTAL_STEP * Math.cos(a1);
+          const by = this.y + layer * CRYSTAL_STEP * Math.sin(a1);
+          this.cells.push({
+            x: bx + i * CRYSTAL_STEP * Math.cos(a2),
+            y: by + i * CRYSTAL_STEP * Math.sin(a2),
+            r: CRYSTAL_STEP * 0.48,
+            t: baseT + i * 0.035,
+          });
+        }
+      });
+    }
+  }
+}
+
+/* ============================================================
+   カウントダウンリングUI
+============================================================ */
+let svgProgressEl = null;
+const RING_R = 52;
+const RING_C = 2 * Math.PI * RING_R;
+
+function initReadyRing() {
+  const svgEl = document.querySelector('#readyRing svg');
+  /* セキュア: DOMParser で SVG 構造を生成（innerHTML 不使用） */
+  const doc = new DOMParser().parseFromString(
+    `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">` +
+    `<circle cx="60" cy="60" r="${RING_R}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1.5"/>` +
+    `<circle id="rp" cx="60" cy="60" r="${RING_R}" fill="none" stroke="currentColor" stroke-width="1.8"` +
+    ` stroke-linecap="round" stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C}"` +
+    ` transform="rotate(-90 60 60)" style="transition:stroke 0.4s"/>` +
+    `</svg>`,
+    'image/svg+xml'
+  );
+  svgEl.replaceChildren(doc.documentElement);
+  svgProgressEl = document.getElementById('rp');
+}
+
+function startReadyRing() {
+  nucleiEnabled = false;
+  graceStartTime = performance.now();
+
+  const wrap  = document.getElementById('readyWrap');
+  const label = document.getElementById('readyLabel');
+  wrap.classList.add('show');
+
+  if (svgProgressEl) {
+    svgProgressEl.setAttribute('stroke-dashoffset', String(RING_C));
+    svgProgressEl.style.stroke = getComputedStyle(document.documentElement)
+      .getPropertyValue('--skin-accent').trim() || '#00d4ff';
+  }
+
+  function tick() {
+    const elapsed  = performance.now() - graceStartTime;
+    const fraction = Math.min(elapsed / GRACE_MS, 1);
+    const offset   = RING_C * (1 - fraction);
+    if (svgProgressEl) svgProgressEl.setAttribute('stroke-dashoffset', String(offset));
+
+    if (fraction < 1) {
+      rafReadyId = requestAnimationFrame(tick);
+    } else {
+      /* 猶予終了 → 核を有効化 */
+      nucleiEnabled = true;
+      wrap.classList.remove('show');
+      label.textContent = '流体を導こう';
+    }
+  }
+  if (rafReadyId) cancelAnimationFrame(rafReadyId);
+  rafReadyId = requestAnimationFrame(tick);
+}
+
+/* ============================================================
+   ゲーム初期化
+============================================================ */
+function initGame() {
+  resize();
+
+  particles     = [];
+  crystalNuclei = [];
+  clearTriggered = false;
+  nucleiEnabled  = false;
+  hasInteracted  = false;
+  lastActivationTime = 0;
+  frameCount     = 0;
+  STATE.phase    = 'flow';
+
+  /* 結晶核を配置 */
+  const margin = Math.min(W, H) * 0.2;
+  for (let i = 0; i < NUCLEUS_COUNT; i++) {
+    const angle = (Math.PI * 2 / NUCLEUS_COUNT) * i + Math.PI / 5;
+    const dist  = Math.min(W, H) * 0.28;
+    const nx    = W / 2 + Math.cos(angle) * dist * (0.65 + Math.random() * 0.45);
+    const ny    = H / 2 + Math.sin(angle) * dist * (0.65 + Math.random() * 0.45);
+    const freq  = SKINS[STATE.skinId].soundFreq * (1 + i * 0.25);
+    crystalNuclei.push(new CrystalNucleus(
+      Math.max(margin, Math.min(W - margin, nx)),
+      Math.max(margin, Math.min(H - margin, ny)),
+      freq
+    ));
+  }
+
+  /* パーティクル配置（安全距離確保） */
+  for (let i = 0; i < MAX_PARTICLES; i++) {
+    let px, py;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      px = Math.random() * W;
+      py = Math.random() * H;
+      const safe = crystalNuclei.every(n => {
+        const d2 = (px - n.x) ** 2 + (py - n.y) ** 2;
+        return d2 >= NUCLEUS_SAFE_ZONE * NUCLEUS_SAFE_ZONE;
+      });
+      if (safe) break;
+    }
+    const p = new Particle(px, py);
+    const cx = W / 2, cy = H / 2;
+    const ddx = p.x - cx, ddy = p.y - cy;
+    const dd  = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+    p.vx = (-ddy / dd) * 0.2 * Math.random();
+    p.vy = ( ddx / dd) * 0.2 * Math.random();
+    particles.push(p);
+  }
+
+  /* カウントダウンリング開始 */
+  startReadyRing();
+}
+
+/* ============================================================
+   メインゲームループ
+============================================================ */
+function gameLoop() {
+  animId = requestAnimationFrame(gameLoop);
+  frameCount++;
+
+  const skin = SKINS[STATE.skinId];
+  ctx2d.clearRect(0, 0, W, H);
+
+  /* 背景グラデーション */
+  const bgGrad = ctx2d.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, skin.bgA);
+  bgGrad.addColorStop(1, skin.bgB);
+  ctx2d.fillStyle = bgGrad;
+  ctx2d.fillRect(0, 0, W, H);
+
+  const t = frameCount * 0.016;
+
+  updateParticles(t, skin);
+  drawCrystals(t, skin);
+  drawNuclei(t, skin);
+  if (isPointerActive) drawPointerGlow(skin);
+
+  /* クリア判定は十分な操作かつ猶予後 */
+  if (!clearTriggered && STATE.phase !== 'clear' && nucleiEnabled && hasInteracted) {
+    checkClear();
+  }
+}
+
+/* ============================================================
+   パーティクル更新 & 描画
+============================================================ */
+function updateParticles(t, skin) {
+  const pX = pointerX, pY = pointerY;
+  const now = frameCount * 0.016;
+
+  particles.forEach(p => {
+    if (p.frozen) return;
+
+    if (p.alpha < p.life) p.alpha = Math.min(p.life, p.alpha + 0.005);
+
+    p.phase += 0.018;
+    const fx = Math.sin(p.phase * 0.6 + p.y * 0.0022) * 0.28;
+    const fy = Math.cos(p.phase * 0.45 + p.x * 0.0022) * 0.28;
+
+    /* ポインター引力（ホバー時にも吸い寄せ、クリック・ドラッグ中はより強力に） */
+    p.manipulated = false;
+    if (isPointerActive) {
+      const distX = pX - p.x, distY = pY - p.y;
+      const dist2 = distX * distX + distY * distY;
+      const currentRadius = isPointerDown ? INFLUENCE_RADIUS * 1.5 : INFLUENCE_RADIUS;
+      if (dist2 < currentRadius * currentRadius && dist2 > 1) {
+        const dist  = Math.sqrt(dist2);
+        const brake = dist < 20 ? (dist / 20) : 1;
+        const forceMultiplier = isPointerDown ? 2.8 : 1.2;
+        const force = (1 - dist / currentRadius) ** 1.6 * forceMultiplier * brake;
+        p.vx += (distX / dist) * force;
+        p.vy += (distY / dist) * force;
+        p.manipulated = true; // ポインターに引き寄せられている状態
+      }
+    }
+
+    p.vx = (p.vx + fx) * VISCOSITY;
+    p.vy = (p.vy + fy) * VISCOSITY;
+
+    /* 最高速度を 6.2 に制限して、とろみと操作性のバランスを取る */
+    const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+    if (speed > 6.2) { p.vx *= 6.2 / speed; p.vy *= 6.2 / speed; }
+
+    p.x += p.vx; p.y += p.vy;
+
+    if (p.x < -p.r)   p.x = W + p.r;
+    if (p.x > W + p.r) p.x = -p.r;
+    if (p.y < -p.r)   p.y = H + p.r;
+    if (p.y > H + p.r) p.y = -p.r;
+
+    /* 結晶核との衝突判定（プレイヤーが導いたパーティクルのみが活性化させる） */
+    if (nucleiEnabled && hasInteracted && (now - lastActivationTime > ACTIVATION_COOLDOWN)) {
+      crystalNuclei.forEach(nucleus => {
+        if (nucleus.activated) return;
+        const ddx = p.x - nucleus.x, ddy = p.y - nucleus.y;
+        if (ddx * ddx + ddy * ddy < (CRYSTAL_RADIUS * 1.8) ** 2) {
+          if (p.manipulated) {
+            // 操作されている流体粒子が接触したときのみ核を活性化
+            nucleus.activate(now);
+            p.frozen = true;
+            p.alpha = 0;
+          }
+        }
+      });
+    }
+
+    /* 描画 */
+    const ratio = Math.min(speed / 5.0, 1);
+    const grad  = ctx2d.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.8);
+    grad.addColorStop(0,   hexAlpha(skin.fluidA, p.alpha * 0.92));
+    grad.addColorStop(0.55, hexAlpha(skin.fluidB, p.alpha * 0.5));
+    grad.addColorStop(1,   hexAlpha(skin.fluidB, 0));
+
+    ctx2d.save();
+    ctx2d.shadowBlur  = 16 + ratio * 18;
+    ctx2d.shadowColor = skin.glow;
+    ctx2d.fillStyle   = grad;
+    ctx2d.beginPath();
+    ctx2d.arc(p.x, p.y, p.r * (1 + ratio * 0.35), 0, Math.PI * 2);
+    ctx2d.fill();
+    ctx2d.restore();
+  });
+}
+
+/* ============================================================
+   結晶描画
+============================================================ */
+function drawCrystals(t, skin) {
+  crystalNuclei.forEach(nucleus => {
+    if (!nucleus.activated) return;
+    const age = t - nucleus.activatedAt;
+
+    nucleus.cells.forEach(cell => {
+      if (age < cell.t) return;
+      const growAge  = age - cell.t;
+      const growFrac = Math.min(1, growAge / 0.38);
+      const r = cell.r * growFrac;
+      const a = 0.12 + growFrac * 0.78;
+
+      ctx2d.save();
+      ctx2d.globalAlpha = a;
+      ctx2d.shadowBlur  = 10 * growFrac;
+      ctx2d.shadowColor = skin.crystalA;
+      ctx2d.strokeStyle = skin.crystalA;
+      ctx2d.lineWidth   = 0.9 * growFrac;
+      ctx2d.fillStyle   = hexAlpha(skin.crystalB, 0.055 * growFrac);
+
+      hexPath(ctx2d, cell.x, cell.y, r);
+      ctx2d.fill();
+      ctx2d.stroke();
+      ctx2d.restore();
+    });
+  });
+}
+
+/* ============================================================
+   結晶核（脈動リング）描画
+============================================================ */
+function drawNuclei(t, skin) {
+  crystalNuclei.forEach(nucleus => {
+    if (nucleus.activated) return;
+    const pulse     = (Math.sin(t * 2.8 + nucleus.x * 0.01) + 1) * 0.5;
+    /* 猶予中は暗め、猶予後は明るく */
+    const baseAlpha = nucleiEnabled ? 0.55 + pulse * 0.45 : 0.18 + pulse * 0.18;
+
+    ctx2d.save();
+    ctx2d.shadowBlur  = (nucleiEnabled ? 28 : 12) + pulse * 28;
+    ctx2d.shadowColor = skin.glow;
+    ctx2d.strokeStyle = skin.glow;
+
+    /* 内リング */
+    ctx2d.globalAlpha = baseAlpha;
+    ctx2d.lineWidth   = nucleiEnabled ? 1.8 : 0.9;
+    ctx2d.beginPath();
+    ctx2d.arc(nucleus.x, nucleus.y, CRYSTAL_RADIUS * (0.68 + pulse * 0.32), 0, Math.PI * 2);
+    ctx2d.stroke();
+
+    /* 外リング */
+    ctx2d.globalAlpha = baseAlpha * 0.3;
+    ctx2d.beginPath();
+    ctx2d.arc(nucleus.x, nucleus.y, CRYSTAL_RADIUS * 2.2 + pulse * 16, 0, Math.PI * 2);
+    ctx2d.stroke();
+
+    /* 中心点 */
+    ctx2d.globalAlpha = nucleiEnabled ? 0.9 : 0.35;
+    ctx2d.fillStyle   = skin.glow;
+    ctx2d.shadowBlur  = nucleiEnabled ? 44 : 14;
+    ctx2d.beginPath();
+    ctx2d.arc(nucleus.x, nucleus.y, nucleiEnabled ? 5 : 2.5, 0, Math.PI * 2);
+    ctx2d.fill();
+
+    ctx2d.restore();
+  });
+}
+
+/* ============================================================
+   ポインターグロー描画
+============================================================ */
+function drawPointerGlow(skin) {
+  const vx = pointerX - lastPointerX, vy = pointerY - lastPointerY;
+  const speed = Math.sqrt(vx * vx + vy * vy);
+  const gr    = 65 + speed * 1.5;
+
+  const grad = ctx2d.createRadialGradient(pointerX, pointerY, 0, pointerX, pointerY, gr);
+  grad.addColorStop(0,   hexAlpha(skin.fluidA, 0.38));
+  grad.addColorStop(0.5, hexAlpha(skin.fluidA, 0.09));
+  grad.addColorStop(1,   hexAlpha(skin.fluidA, 0));
+
+  ctx2d.save();
+  ctx2d.shadowBlur  = 28 + speed * 0.5;
+  ctx2d.shadowColor = skin.glow;
+  ctx2d.fillStyle   = grad;
+  ctx2d.beginPath();
+  ctx2d.arc(pointerX, pointerY, gr, 0, Math.PI * 2);
+  ctx2d.fill();
+  ctx2d.restore();
+}
+
+/* ============================================================
+   クリア判定
+============================================================ */
+function checkClear() {
+  /* 重要: 空配列の every() は true を返すため、核の存在を確認する */
+  if (crystalNuclei.length === 0) return;
+  const allActivated = crystalNuclei.every(n => n.activated);
+  if (!allActivated) return;
+  triggerClear();
+}
+
+
+function triggerClear() {
+  if (clearTriggered) return;
+  clearTriggered = true;
+  STATE.phase    = 'clear';
+
+  stopFlowNoise();
+  playClearChord();
+  vibrateClear();
+  particles.forEach(p => { p.life = 0.01; });
+
+  setTimeout(() => {
+    const clr = document.getElementById('clearOverlay');
+    /* inline style をリセットして CSS transition を有効にする */
+    clr.style.opacity      = '';
+    clr.style.pointerEvents = '';
+    clr.classList.add('show');
+  }, 900);
+}
+
+
+/* ============================================================
+   ゲームリセット
+============================================================ */
+function resetGame() {
+  stopFlowNoise();
+  if (animId)      cancelAnimationFrame(animId);
+  if (rafReadyId)  cancelAnimationFrame(rafReadyId);
+
+  /* クリアオーバーレイを確実にリセット（transition中でも即座に適用） */
+  const clr = document.getElementById('clearOverlay');
+  clr.classList.remove('show');
+  clr.style.opacity      = '0';
+  clr.style.pointerEvents = 'none';
+
+  document.getElementById('readyWrap').classList.remove('show');
+  /* ヒントを復活させる */
+  document.getElementById('hint').classList.remove('hidden');
+
+  initGame();
+  gameLoop();
+
+  /* ヒントを4秒後に消す */
+  setTimeout(() => {
+    document.getElementById('hint').classList.add('hidden');
+  }, 4500);
+}
+
+
+/* ============================================================
+   ユーティリティ: 16進 + アルファ
+============================================================ */
+function hexAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+}
+
+/* ============================================================
+   入力イベント
+============================================================ */
+function getPos(e) {
+  return e.changedTouches && e.changedTouches.length
+    ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY }
+    : { x: e.clientX, y: e.clientY };
+}
+
+canvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  isPointerDown = true;
+  isPointerActive = true;
+  hasInteracted = true; /* ユーザーが最初に操作した */
+  const p = getPos(e); pointerX = lastPointerX = p.x; pointerY = lastPointerY = p.y;
+  startFlowNoise(); vibrateFluid();
+  document.getElementById('hint').classList.add('hidden');
+}, { passive: false });
+
+canvas.addEventListener('mousemove', e => {
+  e.preventDefault();
+  isPointerActive = true;
+  lastPointerX = pointerX; lastPointerY = pointerY;
+  const p = getPos(e); pointerX = p.x; pointerY = p.y;
+}, { passive: false });
+
+canvas.addEventListener('mouseup', () => {
+  isPointerDown = false; stopFlowNoise();
+}, { passive: true });
+
+canvas.addEventListener('mouseleave', () => {
+  isPointerActive = false;
+  isPointerDown = false;
+  stopFlowNoise();
+});
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  isPointerDown = true;
+  isPointerActive = true;
+  hasInteracted = true; /* ユーザーが最初に操作した */
+  const p = getPos(e); pointerX = lastPointerX = p.x; pointerY = lastPointerY = p.y;
+  startFlowNoise(); vibrateFluid();
+  document.getElementById('hint').classList.add('hidden');
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  isPointerActive = true;
+  lastPointerX = pointerX; lastPointerY = pointerY;
+  const p = getPos(e); pointerX = p.x; pointerY = p.y;
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+  isPointerDown = false;
+  isPointerActive = false;
+  stopFlowNoise();
+}, { passive: true });
+
+
+/* ============================================================
+   UIイベント
+============================================================ */
+let skinPanelOpen = false;
+const skinPanel = document.getElementById('skinPanel');
+
+document.getElementById('btnSkin').addEventListener('click', () => {
+  skinPanelOpen = !skinPanelOpen;
+  skinPanel.classList.toggle('open', skinPanelOpen);
+  skinPanel.setAttribute('aria-hidden', String(!skinPanelOpen));
+  if (skinPanelOpen) buildSkinPanel();
+});
+
+document.addEventListener('click', e => {
+  if (!skinPanelOpen) return;
+  if (!skinPanel.contains(e.target) && e.target.id !== 'btnSkin') closeSkinPanel();
+});
+
+function closeSkinPanel() {
+  skinPanelOpen = false;
+  skinPanel.classList.remove('open');
+  skinPanel.setAttribute('aria-hidden', 'true');
+}
+
+document.getElementById('btnSound').addEventListener('click', () => {
+  STATE.soundEnabled = !STATE.soundEnabled;
+  document.getElementById('soundIconOn').style.display  = STATE.soundEnabled ? '' : 'none';
+  document.getElementById('soundIconOff').style.display = STATE.soundEnabled ? 'none' : '';
+  try { localStorage.setItem('fc_sound', STATE.soundEnabled ? '1' : '0'); } catch (_) {}
+  if (!STATE.soundEnabled) stopFlowNoise();
+});
+
+/* 初期サウンドアイコン状態 */
+if (!STATE.soundEnabled) {
+  document.getElementById('soundIconOn').style.display  = 'none';
+  document.getElementById('soundIconOff').style.display = '';
+}
+
+document.getElementById('btnReset').addEventListener('click', resetGame);
+document.getElementById('clearRestart').addEventListener('click', resetGame);
+
+window.addEventListener('resize', () => { resize(); resetGame(); });
+
+/* ============================================================
+   スタートアップ
+============================================================ */
+window.addEventListener('load', () => {
+  /* 初回ロード時に確実にクリアオーバーレイを非表示にする（キャッシュ対策） */
+  const clearOverlay = document.getElementById('clearOverlay');
+  clearOverlay.classList.remove('show');
+  clearOverlay.style.opacity = '0';
+  clearOverlay.style.pointerEvents = 'none';
+
+  initReadyRing();  /* リングSVGを先に構築してからスキン適用 */
+  applySkin(STATE.skinId);
+
+  setTimeout(() => {
+    const loader = document.getElementById('loader');
+    loader.classList.add('done');
+    setTimeout(() => loader.remove(), 900);
+  }, 300);
+});
+</script>
+</body>
+</html>
