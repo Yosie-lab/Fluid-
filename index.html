@@ -457,6 +457,19 @@ const STATE = {
 let isPointerActive = false;
 let currentInfluenceRadius = 100; // 画面サイズに応じてリサイズ時に更新
 
+/* スキンごとのベース色相（HSL）を返す関数（XSS安全な定数定義） */
+function getSkinHue(skinId) {
+  switch (skinId) {
+    case 0: return 195; // 水: ターコイズブルー〜シアン
+    case 1: return 12;  // 溶岩: 燃えるようなレッド〜オレンジ
+    case 2: return 275; // 星雲: 神秘的なパープル〜マゼンタ
+    case 3: return 335; // 桜: 鮮やかなサクラピンク〜スプリンググリーン
+    case 4: return 50;  // 雷: エレクトリックイエロー〜エメラルド
+    default: return 0;
+  }
+}
+
+
 
 
 /* localStorage から設定を安全に読み込む（数値のみ許可・XSS対策済み） */
@@ -729,51 +742,7 @@ const GRACE_MS       = 3800;   /* 猶予時間 (ms) */
 /* ===== 定数 ===== */
 const MAX_PARTICLES       = 360;
 const PARTICLE_RADIUS     = 4;
-const VISCOSITY           = 0.88;
-const CRYSTAL_STEP        = 36;
-const CRYSTAL_RADIUS      = 26;
-const NUCLEUS_COUNT       = 3;
-const NUCLEUS_SAFE_ZONE   = 180;
-const ACTIVATION_COOLDOWN = 0.4;
-
-/* ============================================================
-   リサイズ
-============================================================ */
-function resize() {
-  const dpr = window.devicePixelRatio || 1;
-  W = window.innerWidth; H = window.innerHeight;
-  canvas.width  = Math.round(W * dpr);
-  canvas.height = Math.round(H * dpr);
-  canvas.style.width  = W + 'px';
-  canvas.style.height = H + 'px';
-  ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  // 画面サイズに応じて影響範囲を動的に調整（iPhoneなどの狭い画面で広がりすぎないようにする）
-  currentInfluenceRadius = Math.max(80, Math.min(180, Math.min(W, H) * 0.24));
-}
-
-/* ============================================================
-   Particle クラス
-============================================================ */
-class Particle {
-  constructor(x, y) {
-    this.x  = x ?? Math.random() * W;
-    this.y  = y ?? Math.random() * H;
-    this.vx = (Math.random() - 0.5) * 0.15;
-    this.vy = (Math.random() - 0.5) * 0.15;
-    this.life   = 0.55 + Math.random() * 0.45;
-    this.r      = PARTICLE_RADIUS * (0.5 + Math.random() * 0.8);
-    this.alpha  = 0;
-    this.phase  = Math.random() * Math.PI * 2;
-    this.frozen = false;
-    this.manipulated = false; // ポインターに操作されているかどうかのフラグ
-  }
-}
-
-/* ============================================================
-   CrystalNucleus クラス
-============================================================ */
-class CrystalNucleus {
+conclass CrystalNucleus {
   constructor(x, y, freq) {
     this.x = x; this.y = y; this.freq = freq;
     this.reset();
@@ -783,9 +752,11 @@ class CrystalNucleus {
     this.activated   = false;
     this.activatedAt = 0;
     this.energy      = 0.0;
+    this.combo       = 0;
+    this.lastAbsorbAt = 0;
     // 最初の中心セル（核の基準点）
     this.cells = [
-      { x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, rot: Math.random() * Math.PI, grow: 0, layer: 0 }
+      { x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, rot: Math.random() * Math.PI, grow: 0, combo: 1, idx: 0 }
     ];
   }
 
@@ -793,17 +764,26 @@ class CrystalNucleus {
   absorb(pX, pY) {
     if (this.activated) return;
     
-    this.energy = Math.min(1.0, this.energy + 0.025);
-    vibrateCrystal(); // 軽いハプティクスフィードバック
-    
-    // 吸い込みSE
-    playAbsorbSound(this.freq * (0.8 + this.energy * 0.4));
+    // コンボ判定（直近の吸い込みが 0.18秒以内ならコンボ加算）
+    const now = frameCount * 0.016;
+    if (now - this.lastAbsorbAt < 0.18) {
+      this.combo = Math.min(10, this.combo + 1);
+    } else {
+      this.combo = 1;
+    }
+    this.lastAbsorbAt = now;
 
-    // 吸い込まれた粒子の位置(pX, pY)に基づいて、不規則に新しい結晶を結合させて伸ばす
-    this._growUnpredictable(pX, pY);
+    this.energy = Math.min(1.0, this.energy + 0.022); // 少しゆっくり成長させて楽しむ
+    vibrateCrystal(); // 軽いハプティクス
+    
+    // コンボするほど音階が木琴のように跳ね上がる、美しいSE演出
+    playAbsorbSound(this.freq * (0.7 + this.energy * 0.3 + this.combo * 0.06));
+
+    // 吸い込まれた粒子の位置(pX, pY)とコンボ数を渡して結晶を成長させる
+    this._growUnpredictable(pX, pY, this.combo);
 
     if (this.energy >= 1.0) {
-      this.activate(frameCount * 0.016);
+      this.activate(now);
     }
   }
 
@@ -813,11 +793,11 @@ class CrystalNucleus {
     this.activatedAt = now;
     lastActivationTime = now;
     vibrateClear(); // 完全開花時の強めのハプティクス
-    playCrystalSound(this.freq); // 開花メロディ
+    playClearChord(); // 美しいクリア和音を重ねる
   }
 
   /* 流体が吸い込まれた位置の周辺に、ランダムに結晶を繋げていく動的成長アルゴリズム */
-  _growUnpredictable(pX, pY) {
+  _growUnpredictable(pX, pY, combo) {
     // 既存のセルの中から、吸い込まれた位置に最も近い「親セル」を探索
     let bestParent = this.cells[0];
     let minDist2 = Infinity;
@@ -826,6 +806,72 @@ class CrystalNucleus {
       const dx = pX - cell.x, dy = pY - cell.y;
       const d2 = dx * dx + dy * dy;
       if (d2 < minDist2) {
+        minDist2 = d2;
+        bestParent = cell;
+      }
+    });
+
+    // 親セルの周囲6方向（六方格子）の接続先候補を計算
+    const directions = [0, 60, 120, 180, 240, 300].map(deg => {
+      const rad = deg * Math.PI / 180;
+      return {
+        x: bestParent.x + CRYSTAL_STEP * Math.cos(rad),
+        y: bestParent.y + CRYSTAL_STEP * Math.sin(rad),
+        angle: rad
+      };
+    });
+
+    // 既に他のセルが置かれている重複箇所を除外する
+    const margin = CRYSTAL_STEP * 0.85;
+    const availableDirs = directions.filter(dir => {
+      return this.cells.every(c => {
+        const dx = c.x - dir.x, dy = c.y - dir.y;
+        return (dx * dx + dy * dy) > margin * margin;
+      });
+    });
+
+    let targetX, targetY;
+    if (availableDirs.length > 0) {
+      // 空いている接続先の中から、吸い込まれた流体の進入角ベクトルに最も近い方向を選択
+      let bestDir = availableDirs[0];
+      let maxDot = -Infinity;
+      const targetVecX = pX - bestParent.x;
+      const targetVecY = pY - bestParent.y;
+      const targetLen = Math.sqrt(targetVecX * targetVecX + targetVecY * targetVecY) || 1;
+
+      availableDirs.forEach(dir => {
+        const dirVecX = dir.x - bestParent.x;
+        const dirVecY = dir.y - bestParent.y;
+        const dot = (dirVecX * targetVecX + dirVecY * targetVecY) / targetLen;
+        if (dot > maxDot) {
+          maxDot = dot;
+          bestDir = dir;
+        }
+      });
+      targetX = bestDir.x;
+      targetY = bestDir.y;
+    } else {
+      // 完全に周囲が埋まっている場合は、少しずらした位置に強制的に新しい枝を伸ばす
+      const angle = Math.atan2(pY - bestParent.y, pX - bestParent.x);
+      const randomRad = angle + (Math.random() - 0.5) * 0.6;
+      targetX = bestParent.x + CRYSTAL_STEP * Math.cos(randomRad);
+      targetY = bestParent.y + CRYSTAL_STEP * Math.sin(randomRad);
+    }
+
+    // 不規則性を持たせた新しい結晶セルを追加
+    this.cells.push({
+      x: targetX,
+      y: targetY,
+      // コンボ（たくさん集めて吸い込ませる）ほど結晶が大きく育つ！
+      r: CRYSTAL_STEP * 0.45 * (0.82 + Math.random() * 0.32) * (1.0 + combo * 0.05),
+      // ピースの回転角をランダムにし、毎回異なる幾何学模様にする
+      rot: Math.random() * Math.PI,
+      grow: 0, // 0 から 1 へ向けたアニメーションフラグ
+      combo: combo, // 生成時のコンボ数
+      idx: this.cells.length // 生成順
+    });
+  }
+}    if (d2 < minDist2) {
         minDist2 = d2;
         bestParent = cell;
       }
@@ -1137,6 +1183,8 @@ function drawCrystals(t, skin) {
   crystalNuclei.forEach(nucleus => {
     if (nucleus.cells.length === 0) return;
 
+    const baseHue = getSkinHue(STATE.skinId);
+
     nucleus.cells.forEach(cell => {
       // 結合時のジワッとした出現アニメーション
       if (cell.grow < 1.0) {
@@ -1146,11 +1194,23 @@ function drawCrystals(t, skin) {
       const r = cell.r * cell.grow;
       const a = 0.12 + cell.grow * 0.78;
 
+      // 色彩の計算: 成長の順番(cell.idx)に応じて色相をなめらかに回す（虹色/オーロラグラデーション）
+      // コンボが多いほど、より鮮やかで明るい色にシフトする
+      const comboBonus = cell.combo ? cell.combo * 5 : 0;
+      const cellHue = (baseHue + cell.idx * 4.5 + comboBonus) % 360;
+      
+      // コンボが高い（一気にいっぱい集めた）ほど光り輝く太い線にする
+      const isHighCombo = cell.combo > 5;
+      const strokeColor = `hsla(${cellHue}, 96%, ${isHighCombo ? '92%' : '80%'}, ${a})`;
+      
+      const fillOpacity = (0.08 + (cell.combo || 1) * 0.015) * cell.grow;
+      const fillColor = `hsla(${(cellHue + 25) % 360}, 96%, 64%, ${a * fillOpacity})`;
+
       ctx2d.save();
       ctx2d.globalAlpha = a;
-      ctx2d.strokeStyle = skin.crystalA;
-      ctx2d.lineWidth   = 0.9 * cell.grow;
-      ctx2d.fillStyle   = hexAlpha(skin.crystalB, 0.085 * cell.grow);
+      ctx2d.strokeStyle = strokeColor;
+      ctx2d.lineWidth   = (0.8 + (cell.combo || 1) * 0.18) * cell.grow; // コンボで線が太く眩しくなる
+      ctx2d.fillStyle   = fillColor;
 
       // セルごとの個別座標・不規則回転を適用
       ctx2d.translate(cell.x, cell.y);
