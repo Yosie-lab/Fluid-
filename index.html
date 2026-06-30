@@ -455,6 +455,8 @@ const STATE = {
 
 /* ポインターのアクティブ状態を管理するフラグ */
 let isPointerActive = false;
+let currentInfluenceRadius = 100; // 画面サイズに応じてリサイズ時に更新
+
 
 
 /* localStorage から設定を安全に読み込む（数値のみ許可・XSS対策済み） */
@@ -711,7 +713,6 @@ const GRACE_MS       = 3800;   /* 猶予時間 (ms) */
 /* ===== 定数 ===== */
 const MAX_PARTICLES       = 360;
 const PARTICLE_RADIUS     = 4;
-const INFLUENCE_RADIUS    = 150; // デフォルトの影響範囲を拡大
 const VISCOSITY           = 0.88;
 const CRYSTAL_STEP        = 36;
 const CRYSTAL_RADIUS      = 26;
@@ -730,6 +731,9 @@ function resize() {
   canvas.style.width  = W + 'px';
   canvas.style.height = H + 'px';
   ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // 画面サイズに応じて影響範囲を動的に調整（iPhoneなどの狭い画面で広がりすぎないようにする）
+  currentInfluenceRadius = Math.max(80, Math.min(180, Math.min(W, H) * 0.24));
 }
 
 /* ============================================================
@@ -959,7 +963,7 @@ function updateParticles(t, skin) {
     if (isPointerActive) {
       const distX = pX - p.x, distY = pY - p.y;
       const dist2 = distX * distX + distY * distY;
-      const currentRadius = isPointerDown ? INFLUENCE_RADIUS * 1.5 : INFLUENCE_RADIUS;
+      const currentRadius = isPointerDown ? currentInfluenceRadius * 1.5 : currentInfluenceRadius;
       if (dist2 < currentRadius * currentRadius && dist2 > 1) {
         const dist  = Math.sqrt(dist2);
         const brake = dist < 20 ? (dist / 20) : 1;
@@ -967,7 +971,12 @@ function updateParticles(t, skin) {
         const force = (1 - dist / currentRadius) ** 1.6 * forceMultiplier * brake;
         p.vx += (distX / dist) * force;
         p.vy += (distY / dist) * force;
-        p.manipulated = true; // ポインターに引き寄せられている状態
+        
+        // ポインターのすぐ近く（引力範囲の45%以内）でしっかり操作されている流体のみを「操作中」と判定
+        // これにより、画面全体の流体が勝手に他所の結晶核を活性化するのを防ぎます
+        if (dist < currentRadius * 0.45) {
+          p.manipulated = true;
+        }
       }
     }
 
