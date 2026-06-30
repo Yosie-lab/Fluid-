@@ -528,10 +528,26 @@ function playCrystalSound(freq) {
   const lpf  = ctx.createBiquadFilter();
   osc.type = 'sine'; osc.frequency.value = freq || SKINS[STATE.skinId].soundFreq;
   lpf.type = 'lowpass'; lpf.frequency.value = 3200;
-  gain.gain.setValueAtTime(0.28, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+  gain.gain.setValueAtTime(0.35, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
   osc.connect(lpf); lpf.connect(gain); gain.connect(ctx.destination);
-  osc.start(); osc.stop(ctx.currentTime + 0.7);
+  osc.start(); osc.stop(ctx.currentTime + 1.2);
+}
+
+/* 流体が吸い込まれるときの心地よい音 */
+function playAbsorbSound(freq) {
+  if (!STATE.soundEnabled) return;
+  const ctx  = getAudioCtx();
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.08, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.15);
 }
 
 function playClearChord() {
@@ -762,25 +778,42 @@ class CrystalNucleus {
     this.x = x; this.y = y; this.freq = freq;
     this.activated   = false;
     this.activatedAt = 0;
+    this.energy      = 0.0; // 0.0 から 1.0 まで増加する結晶の成長エネルギー
     this.cells       = [];
+    this._spawnCells();
+  }
+
+  /* 流体が1個吸い込まれた際の処理 */
+  absorb() {
+    if (this.activated) return;
+    // 約40個の流体粒子を吸い込むと完全開花するように調整
+    this.energy = Math.min(1.0, this.energy + 0.025);
+    
+    vibrateCrystal(); // 軽いハプティクスフィードバック
+    
+    // 吸い込むごとにエネルギー量に応じて少しずつ音階が上がる演出
+    playAbsorbSound(this.freq * (0.8 + this.energy * 0.4));
+
+    if (this.energy >= 1.0) {
+      this.activate(frameCount * 0.016);
+    }
   }
 
   activate(now) {
     if (this.activated) return;
     this.activated   = true;
     this.activatedAt = now;
-    lastActivationTime = now; // クールダウン開始時刻を更新
-    vibrateCrystal();
-    playCrystalSound(this.freq);
-    this._spawnCells();
+    lastActivationTime = now;
+    vibrateClear(); // 完全開花時の強めのハプティクス
+    playCrystalSound(this.freq); // 開花メロディ
   }
 
   _spawnCells() {
-    const maxLayer = 5; // レイヤー数を20から5に減らし、描画セル数を劇的に削減（約1200個から約90個へ）
+    const maxLayer = 6;
     for (let layer = 0; layer <= maxLayer; layer++) {
       const baseT = layer * 0.12;
       if (layer === 0) {
-        this.cells.push({ x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, t: 0 });
+        this.cells.push({ x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, t: 0, layer: 0 });
         continue;
       }
       [0, 60, 120, 180, 240, 300].forEach(deg => {
@@ -794,6 +827,7 @@ class CrystalNucleus {
             y: by + i * CRYSTAL_STEP * Math.sin(a2),
             r: CRYSTAL_STEP * 0.48,
             t: baseT + i * 0.05,
+            layer: layer,
           });
         }
       });
@@ -994,17 +1028,30 @@ function updateParticles(t, skin) {
     if (p.y < -p.r)   p.y = H + p.r;
     if (p.y > H + p.r) p.y = -p.r;
 
-    /* 結晶核との衝突判定（プレイヤーが導いたパーティクルのみが活性化させる） */
-    if (nucleiEnabled && hasInteracted && (now - lastActivationTime > ACTIVATION_COOLDOWN)) {
+    /* 結晶核への吸い込み & 衝突判定 */
+    if (nucleiEnabled && hasInteracted) {
       crystalNuclei.forEach(nucleus => {
         if (nucleus.activated) return;
-        const ddx = p.x - nucleus.x, ddy = p.y - nucleus.y;
-        if (ddx * ddx + ddy * ddy < (CRYSTAL_RADIUS * 1.8) ** 2) {
+        
+        const ddx = nucleus.x - p.x, ddy = nucleus.y - p.y;
+        const dist2 = ddx * ddx + ddy * ddy;
+        const absorbRadius = CRYSTAL_RADIUS * 3.2; // 吸い込みが始まる判定範囲 (約83px)
+        
+        if (dist2 < absorbRadius * absorbRadius) {
+          const dist = Math.sqrt(dist2);
+          
           if (p.manipulated) {
-            // 操作されている流体粒子が接触したときのみ核を活性化
-            nucleus.activate(now);
-            p.frozen = true;
-            p.alpha = 0;
+            if (dist < CRYSTAL_RADIUS * 0.8) {
+              // 十分に核の中心に近づいたら吸い込まれて消滅（核に吸収される）
+              p.frozen = true;
+              p.alpha = 0;
+              nucleus.absorb();
+            } else {
+              // 吸い込み範囲内に入ったパーティクルは、核の中心に向かって引きずり込まれる（吸い込み演出）
+              const pullForce = (1 - dist / absorbRadius) ** 2.0 * 2.2;
+              p.vx += (ddx / dist) * pullForce;
+              p.vy += (ddy / dist) * pullForce;
+            }
           }
         }
       });
@@ -1031,13 +1078,23 @@ function updateParticles(t, skin) {
 ============================================================ */
 function drawCrystals(t, skin) {
   crystalNuclei.forEach(nucleus => {
-    if (!nucleus.activated) return;
-    const age = t - nucleus.activatedAt;
+    if (nucleus.energy <= 0) return;
+    
+    const age = nucleus.activated ? (t - nucleus.activatedAt) : 0;
+    const maxVisibleLayer = Math.floor(nucleus.energy * 6); // 成長度に応じたレイヤーのみ表示
 
     nucleus.cells.forEach(cell => {
-      if (age < cell.t) return;
-      const growAge  = age - cell.t;
-      const growFrac = Math.min(1, growAge / 0.38);
+      // まだ活性化していない時は、エネルギーレベル以下のレイヤーのみ描画
+      if (!nucleus.activated && cell.layer > maxVisibleLayer) return;
+      
+      // 活性化している時は、開花アニメーション時間を考慮
+      if (nucleus.activated && age < cell.t) return;
+
+      const growFrac = nucleus.activated 
+        ? Math.min(1, (age - cell.t) / 0.38)
+        : Math.min(1, (nucleus.energy * 6 - cell.layer) + 0.3); // 段階的な成長比率
+
+      if (growFrac <= 0) return;
       const r = cell.r * growFrac;
       const a = 0.12 + growFrac * 0.78;
 
@@ -1045,7 +1102,7 @@ function drawCrystals(t, skin) {
       ctx2d.globalAlpha = a;
       ctx2d.strokeStyle = skin.crystalA;
       ctx2d.lineWidth   = 0.9 * growFrac;
-      ctx2d.fillStyle   = hexAlpha(skin.crystalB, 0.085 * growFrac); // 影を消した分、少し塗りつぶしを明るく
+      ctx2d.fillStyle   = hexAlpha(skin.crystalB, 0.085 * growFrac); // 塗りつぶし
 
       hexPath(ctx2d, cell.x, cell.y, r);
       ctx2d.fill();
