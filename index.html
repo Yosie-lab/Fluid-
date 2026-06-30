@@ -1434,6 +1434,29 @@ function updateParticles(t, skin) {
   
   // 吸収されて消滅した不要な粒子を配列から完全にパージ（除去）し、走査負荷をゼロにする
   particles = particles.filter(p => !p.frozen);
+
+  // エネルギー粒子が足りなくならないよう、減った分の粒子をリスポーン（再生成）
+  while (particles.length < MAX_PARTICLES) {
+    let px, py;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      px = Math.random() * W;
+      py = Math.random() * H;
+      const safe = crystalNuclei.every(n => {
+        const d2 = (px - n.x) ** 2 + (py - n.y) ** 2;
+        return d2 >= NUCLEUS_SAFE_ZONE * NUCLEUS_SAFE_ZONE;
+      });
+      if (safe) break;
+    }
+    const p = new Particle(px, py);
+    p.fadeInSpeed = 0.015; // 徐々にフェードインして出現させる
+
+    const cx = W / 2, cy = H / 2;
+    const ddx = p.x - cx, ddy = p.y - cy;
+    const dd  = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+    p.vx = (-ddy / dd) * 0.2 * Math.random();
+    p.vy = ( ddx / dd) * 0.2 * Math.random();
+    particles.push(p);
+  }
 }
 
 /* ============================================================
