@@ -817,7 +817,7 @@ class CrystalNucleus {
     }
     this.lastAbsorbAt = now;
 
-    this.energy = Math.min(1.0, this.energy + 0.022); // 少しゆっくり成長させて楽しむ
+    this.energy = Math.min(1.0, this.energy + 0.007); // 約140個の粒子でゆっくり満開（鑑賞用）
     vibrateCrystal(); // 軽いハプティクス
     
     // コンボするほど音階が木琴のように跳ね上がる、美しいSE演出
@@ -1136,8 +1136,8 @@ function updateParticles(t, skin) {
               // 吸い込み座標(p.x, p.y)を渡し、そこに向かって結晶を成長させる
               nucleus.absorb(p.x, p.y);
             } else {
-              // 渦巻き（スパイラル）吸い込み力: ゆっくりと螺旋を描きながら収束する気持ちいい軌道
-              const pullForce = (1 - dist / absorbRadius) ** 1.8 * 0.38;
+              // 渦巻き（スパイラル）吸い込み力: ごくゆっくりと螺旋を描きながら収束する気持ちいい軌道
+              const pullForce = (1 - dist / absorbRadius) ** 2.2 * 0.15;
               
               // 中心方向への引力
               p.vx += (ddx / dist) * pullForce;
@@ -1146,15 +1146,15 @@ function updateParticles(t, skin) {
               // 渦を巻く方向への接線力
               const tangentX = -ddy / dist;
               const tangentY = ddx / dist;
-              const swirlForce = (1 - dist / absorbRadius) * 0.32;
+              const swirlForce = (1 - dist / absorbRadius) * 0.18;
               p.vx += tangentX * swirlForce;
               p.vy += tangentY * swirlForce;
 
               // 吸い込み範囲内では流体の最高速度を制限し、ゆっくりと美しく吸い込まれるようにする
               const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-              if (speed > 1.8) {
-                p.vx *= 1.8 / speed;
-                p.vy *= 1.8 / speed;
+              if (speed > 0.8) {
+                p.vx *= 0.8 / speed;
+                p.vy *= 0.8 / speed;
               }
             }
           }
@@ -1190,7 +1190,7 @@ function drawCrystals(t, skin) {
     nucleus.cells.forEach(cell => {
       // 結合時のジワッとした出現アニメーション（速度を落とし、じっくり成長を鑑賞できるように調整）
       if (cell.grow < 1.0) {
-        cell.grow = Math.min(1.0, cell.grow + 0.024); // 約0.8秒かけてゆっくり実体化
+        cell.grow = Math.min(1.0, cell.grow + 0.008); // 約2秒かけてじわ〜っとゆっくり実体化
       }
 
       const r = cell.r * cell.grow;
