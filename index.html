@@ -717,7 +717,7 @@ const CRYSTAL_STEP        = 36;
 const CRYSTAL_RADIUS      = 26;
 const NUCLEUS_COUNT       = 3;
 const NUCLEUS_SAFE_ZONE   = 180;
-const ACTIVATION_COOLDOWN = 1.8;
+const ACTIVATION_COOLDOWN = 0.4;
 
 /* ============================================================
    リサイズ
@@ -772,9 +772,9 @@ class CrystalNucleus {
   }
 
   _spawnCells() {
-    const maxLayer = 20;
+    const maxLayer = 5; // レイヤー数を20から5に減らし、描画セル数を劇的に削減（約1200個から約90個へ）
     for (let layer = 0; layer <= maxLayer; layer++) {
-      const baseT = layer * 0.09;
+      const baseT = layer * 0.12;
       if (layer === 0) {
         this.cells.push({ x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, t: 0 });
         continue;
@@ -789,7 +789,7 @@ class CrystalNucleus {
             x: bx + i * CRYSTAL_STEP * Math.cos(a2),
             y: by + i * CRYSTAL_STEP * Math.sin(a2),
             r: CRYSTAL_STEP * 0.48,
-            t: baseT + i * 0.035,
+            t: baseT + i * 0.05,
           });
         }
       });
