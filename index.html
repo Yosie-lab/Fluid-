@@ -1012,9 +1012,9 @@ class CrystalNucleus {
   absorb(pX, pY) {
     if (this.activated) return;
     
-    // 吸収方向のセクターを記録（情緯的に“3方向から楽しんで」満開するルール）
+    // 吸収方向のセクターを記録（SEやビジュアルの多様性のために残す）
     const angle = Math.atan2(pY - this.y, pX - this.x); // -PI ～ PI
-    const sectorId = Math.floor(((angle + Math.PI) / (Math.PI * 2)) * 6) % 6; // 0–5の6方向
+    const sectorId = Math.floor(((angle + Math.PI) / (Math.PI * 2)) * 6) % 6; // 0–5 of 6 directions
     this.absorbedSectors.add(sectorId);
     
     // コンボ判定（直近の吸い込みが 0.4秒以内ならコンボ加算）
@@ -1026,21 +1026,20 @@ class CrystalNucleus {
     }
     this.lastAbsorbAt = now;
 
-    // 満開条件：3方向以上から吸収された流体の割合だけえなる。
-    // 必要粒子数を3分の2にするため、1粒子あたりのエネルギー増加量を 0.004 から 0.006 に強化（約160粒子で満開）
-    const sectorRatio = Math.min(1.0, this.absorbedSectors.size / 3);
-    this.energy = Math.min(sectorRatio, this.energy + 0.006 * sectorRatio); // 方向が少ないうちは上限がブロックされる
+    // 【改善】方向による成長制限を撤廃し、素直にエネルギーを加算する
+    // 1粒子あたり 0.008 加算（約125個の粒子で満開）
+    this.energy = Math.min(1.0, this.energy + 0.008);
     
     vibrateCrystal();
     
-    // エネルギーと方向数に応じた美しい音階 SE
+    // エネルギーと方向数に応じた美しい音階 SE（既存の計算式をそのまま維持）
     playAbsorbSound(this.freq * (0.6 + this.energy * 0.4 + this.absorbedSectors.size * 0.04));
 
     // 吸い込まれた粒子の位置とコンボ数を渡して結晶を成長させる
     this._growUnpredictable(pX, pY, this.combo);
 
-    // 3方向から流体を届けた上でエネルギーが1.0に達したときに満開
-    if (this.energy >= 1.0 && this.absorbedSectors.size >= 3) {
+    // 【改善】エネルギーが 1.0 に達した時点で満開にする（3方向制限を撤廃）
+    if (this.energy >= 1.0) {
       this.activate(now);
     }
   }
