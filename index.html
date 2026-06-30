@@ -497,34 +497,54 @@ let audioCtx = null;
 
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
 }
 
-/* iOS (iPhone) Safari の音声保護ロックを解除する処理 */
+/* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
 function unlockAudio() {
   const ctx = getAudioCtx();
   if (ctx) {
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        playDummySound(ctx);
+        removeUnlockListeners();
+      }).catch(err => {
+        console.error("Audio Context Resume Failed:", err);
+      });
+    } else {
+      playDummySound(ctx);
+      removeUnlockListeners();
+    }
+  }
+}
+
+function playDummySound(ctx) {
+  try {
     // 1サンプルの無音バッファを再生して安全に再生制限を解除
     const buffer = ctx.createBuffer(1, 1, 22050);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
     source.start(0);
-    
-    // 解除に成功したらイベントリスナをクリア
-    window.removeEventListener('click', unlockAudio);
-    window.removeEventListener('touchstart', unlockAudio);
-  }
+  } catch (e) {}
 }
+
+function removeUnlockListeners() {
+  window.removeEventListener('click', unlockAudio);
+  window.removeEventListener('touchend', unlockAudio);
+}
+
+// iOSでは click と、タッチを離した瞬間(touchend)が最も確実にアンロックトリガーとして機能します
 window.addEventListener('click', unlockAudio);
-window.addEventListener('touchstart', unlockAudio, { passive: true });
+window.addEventListener('touchend', unlockAudio);
 
 let flowNoiseSource = null, flowNoiseGain = null, flowNoiseActive = false;
 
 function startFlowNoise() {
   if (!STATE.soundEnabled || flowNoiseActive) return;
   const ctx = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない（iOS保護）
+
   const bufSize = ctx.sampleRate * 2;
   const buf  = ctx.createBuffer(1, bufSize, ctx.sampleRate);
   const data = buf.getChannelData(0);
@@ -548,6 +568,10 @@ function startFlowNoise() {
 function stopFlowNoise() {
   if (!flowNoiseActive || !flowNoiseGain) return;
   const ctx = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') {
+    flowNoiseActive = false;
+    return;
+  }
   flowNoiseGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.35);
   setTimeout(() => {
     try { flowNoiseSource.stop(); } catch (_) {}
@@ -558,6 +582,8 @@ function stopFlowNoise() {
 function playCrystalSound(freq) {
   if (!STATE.soundEnabled) return;
   const ctx  = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない
+
   const osc  = ctx.createOscillator();
   const gain = ctx.createGain();
   const lpf  = ctx.createBiquadFilter();
@@ -573,6 +599,8 @@ function playCrystalSound(freq) {
 function playAbsorbSound(freq) {
   if (!STATE.soundEnabled) return;
   const ctx  = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない
+
   const osc  = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = 'sine';
@@ -588,6 +616,8 @@ function playAbsorbSound(freq) {
 function playClearChord() {
   if (!STATE.soundEnabled) return;
   const ctx  = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない
+
   const base = SKINS[STATE.skinId].soundFreq;
   [1, 1.26, 1.5, 1.89, 2.0].forEach((ratio, i) => {
     const osc  = ctx.createOscillator();
