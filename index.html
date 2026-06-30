@@ -501,6 +501,25 @@ function getAudioCtx() {
   return audioCtx;
 }
 
+/* iOS (iPhone) Safari の音声保護ロックを解除する処理 */
+function unlockAudio() {
+  const ctx = getAudioCtx();
+  if (ctx) {
+    // 1サンプルの無音バッファを再生して安全に再生制限を解除
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+    
+    // 解除に成功したらイベントリスナをクリア
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('touchstart', unlockAudio);
+  }
+}
+window.addEventListener('click', unlockAudio);
+window.addEventListener('touchstart', unlockAudio, { passive: true });
+
 let flowNoiseSource = null, flowNoiseGain = null, flowNoiseActive = false;
 
 function startFlowNoise() {
