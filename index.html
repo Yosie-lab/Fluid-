@@ -769,12 +769,12 @@ function playCarbonatedSound() {
     noise.stop(now + duration);
   };
 
-  // 左右に極限まで広げ、高音から温かい低音へスイープダウンさせる3系統ノイズ
-  playStereoNoise(-0.9, 10000, 1200, 0.65); // 左（爽快なシュワーから包み込む低域へ）
-  playStereoNoise(0.9, 8500, 1000, 0.65);   // 右（心地よいシュワーから包み込む低域へ）
-  playStereoNoise(0.0, 5000, 600, 0.32);    // 中央（厚みのある中音域から消えていく）
+  // 左右に極限まで広げ、高音から温かい低音へスイープダウンさせる3系統ノイズ（音量をマイルドに調整）
+  playStereoNoise(-0.9, 10000, 1200, 0.35); // 左（0.65 -> 0.35）
+  playStereoNoise(0.9, 8500, 1000, 0.35);   // 右（0.65 -> 0.35）
+  playStereoNoise(0.0, 5000, 600, 0.18);    // 中央（0.32 -> 0.18）
 
-  // 2. 「パチパチ」弾ける無数の泡を 180 個に増量し、アタック・ピッチスイープを極限強化してステレオ配置
+  // 2. 「パチパチ」弾ける無数の泡を 180 個に増量し、アタック・ピッチスイープを極限維持したまま音量調整
   for (let i = 0; i < 180; i++) {
     const delay = Math.random() * 5.1; // 5.1秒の間に分散（消える直前まで配置）
     const time = now + delay;
@@ -789,8 +789,8 @@ function playCarbonatedSound() {
     bubbleOsc.frequency.setValueAtTime(startFreq, time);
     bubbleOsc.frequency.exponentialRampToValueAtTime(startFreq * 0.25, time + 0.004);
     
-    // 【極限強調】音量を従来の2倍以上（0.12 〜 0.22）に引き上げ、後半の減衰も完全に撤廃
-    const peakVol = 0.12 + Math.random() * 0.10;
+    // 【調整】アタック感は維持したまま、耳に優しい音量（0.05 〜 0.10）に微調整
+    const peakVol = 0.05 + Math.random() * 0.05;
     
     // 1msで音量を立ち上げてアタックを非常に鋭くする
     bubbleGain.gain.setValueAtTime(0, time);
