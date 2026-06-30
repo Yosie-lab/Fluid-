@@ -774,30 +774,32 @@ function playCarbonatedSound() {
   playStereoNoise(0.9, 8500, 1000, 0.65);   // 右（心地よいシュワーから包み込む低域へ）
   playStereoNoise(0.0, 5000, 600, 0.32);    // 中央（厚みのある中音域から消えていく）
 
-  // 2. 「パチパチ」弾ける無数の泡を 150 個に増量し、ステレオパンの限界まで広げてランダム配置
-  for (let i = 0; i < 150; i++) {
-    const delay = Math.random() * 5.0; // 5.0秒の間に分散（ほぼ最後まで配置）
+  // 2. 「パチパチ」弾ける無数の泡を 180 個に増量し、アタック・ピッチスイープを極限強化してステレオ配置
+  for (let i = 0; i < 180; i++) {
+    const delay = Math.random() * 5.1; // 5.1秒の間に分散（消える直前まで配置）
     const time = now + delay;
     
     const bubbleOsc = ctx.createOscillator();
     const bubbleGain = ctx.createGain();
     
-    const freq = 3500 + Math.random() * 7000;
+    const startFreq = 4500 + Math.random() * 6500; // 4500Hz 〜 11000Hzの超高音域
     bubbleOsc.type = 'sine';
-    bubbleOsc.frequency.setValueAtTime(freq, time);
     
-    // 消える前のプチプチ音を強調するため、delayによる減衰を緩やかに（最後まで約60%の音量を維持）
-    const fadeRatio = 1 - (delay / duration) * 0.45;
-    const peakVol = (0.038 + Math.random() * 0.042) * fadeRatio; // 弾ける音量を大幅強化
+    // 【極限強調】4msの高速ピッチスイープで「パチッ」というリアルな破裂衝撃音を作る
+    bubbleOsc.frequency.setValueAtTime(startFreq, time);
+    bubbleOsc.frequency.exponentialRampToValueAtTime(startFreq * 0.25, time + 0.004);
     
+    // 【極限強調】音量を従来の2倍以上（0.12 〜 0.22）に引き上げ、後半の減衰も完全に撤廃
+    const peakVol = 0.12 + Math.random() * 0.10;
+    
+    // 1msで音量を立ち上げてアタックを非常に鋭くする
     bubbleGain.gain.setValueAtTime(0, time);
-    bubbleGain.gain.linearRampToValueAtTime(peakVol, time + 0.002);
+    bubbleGain.gain.linearRampToValueAtTime(peakVol, time + 0.001);
     
-    // 後半の泡ほど、パチッとした余韻（ディケイ）をわずかに長めにして存在感を出す
-    const decay = 0.012 + Math.random() * 0.022 + (delay * 0.004);
+    const decay = 0.015 + Math.random() * 0.025;
     bubbleGain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
     
-    // 左右パンを極限（-0.96 〜 +0.96）まで広げ、耳の真横で弾けるリアルなASMR効果を実現
+    // 左右パン極限（真左・真右）のASMRステレオ配置
     if (ctx.createStereoPanner) {
       const panner = ctx.createStereoPanner();
       const pan = (Math.random() * 2 - 1) * 0.96;
