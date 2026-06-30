@@ -852,16 +852,31 @@ class CrystalNucleus {
     vibrateClear(); // 完全開花時の強めのハプティクス
     playClearChord(); // 美しいクリア和音を重ねる
 
-    // 開花ボーナス（5倍に強化）：花（結晶核）の周囲から新しい流動粒子がブワッと大噴出する！
-    const bonusCount = 600; // 溢れ出る粒子の数（120個から600個へ5倍にアップ）
+    // 開花ボーナス（5倍に強化）：花（結晶核）の周囲から新しい流動粒子がブワッと全面に美しく大噴出する！
+    const bonusCount = 600; // 溢れ出る粒子の数
     for (let i = 0; i < bonusCount; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 0.5 + Math.random() * 2.0; // 外側に放射状に広がる速度
-      const p = new Particle(this.x, this.y);
+      // 速度を「ほぼ静止（0.2）」から「ハイスピード（5.5）」まで不均等（ベキ乗）に分散させ、画面全体へ美しく拡散させる
+      const speed = 0.2 + Math.pow(Math.random(), 1.6) * 5.3;
+      
+      // 生成初期位置を1点に集中させず、核の周囲（半径0〜80px）へ分散させて「柔らかな光の煙」のように出現させる
+      const startDist = Math.random() * 80;
+      const px = this.x + Math.cos(angle) * startDist;
+      const py = this.y + Math.sin(angle) * startDist;
+      
+      const p = new Particle(px, py);
       p.vx = Math.cos(angle) * speed;
       p.vy = Math.sin(angle) * speed;
       p.frozen = false;
       p.alpha = 0;
+      
+      // フェードインのタイミングをばらつかせることで、画面のあちこちでじわじわと光が浮かび上がるようにする
+      p.fadeInSpeed = 0.003 + Math.random() * 0.018;
+      
+      // 粒子のサイズも大小を大きくばらつかせ、満天の星屑のような美しさにする
+      p.r = PARTICLE_RADIUS * (0.3 + Math.random() * 2.2);
+      p.life = 0.45 + Math.random() * 0.55; // 最大輝度もランダム
+      
       particles.push(p);
     }
   }
@@ -1094,7 +1109,10 @@ function updateParticles(t, skin) {
   particles.forEach(p => {
     if (p.frozen) return;
 
-    if (p.alpha < p.life) p.alpha = Math.min(p.life, p.alpha + 0.005);
+    if (p.alpha < p.life) {
+      const rate = p.fadeInSpeed || 0.005;
+      p.alpha = Math.min(p.life, p.alpha + rate);
+    }
 
     p.phase += 0.018;
     const fx = Math.sin(p.phase * 0.6 + p.y * 0.0022) * 0.28;
