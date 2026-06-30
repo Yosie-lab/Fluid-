@@ -917,6 +917,9 @@ class CrystalNucleus {
     this.cells = [
       { x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, rot: Math.random() * Math.PI, grow: 0, combo: 1, idx: 0 }
     ];
+    // 満開後に描画負荷をほぼゼロにするための静的テクスチャキャッシュ
+    this.cacheCanvas = null;
+    this.isCached = false;
   }
 
   /* 流体が1個吸い込まれた際の処理 */
@@ -1343,18 +1346,26 @@ function updateParticles(t, skin) {
 }
 
 /* ============================================================
-   結晶描画
+   結晶描画（オフスクリーンキャッシュ対応）
 ============================================================ */
 function drawCrystals(t, skin) {
   crystalNuclei.forEach(nucleus => {
     if (nucleus.cells.length === 0) return;
 
+    // すでにキャッシュ画像が作られている場合は、1枚の静止画像として一瞬で高速描画
+    if (nucleus.isCached && nucleus.cacheCanvas) {
+      ctx2d.drawImage(nucleus.cacheCanvas, 0, 0);
+      return;
+    }
+
     const baseHue = getSkinHue(STATE.skinId);
+    let allGrown = true; // すべてのピースの成長が終わったかを記録
 
     nucleus.cells.forEach(cell => {
-      // 結合時のジワッとした出現アニメーション（速度を落とし、じっくり成長を鑑賞できるように調整）
+      // 結合時のジワッとした出現アニメーション
       if (cell.grow < 1.0) {
         cell.grow = Math.min(1.0, cell.grow + 0.004); // 約4秒かけてじわ〜っとゆるやかに実体化
+        allGrown = false;
       }
 
       const r = cell.r * cell.grow;
@@ -1366,14 +1377,10 @@ function drawCrystals(t, skin) {
       
       // 【凝固発光演出】: まだ実体化しきっていない（grow < 1）の時は、白熱した熱い光として白っぽく発光
       const isSolidifying = cell.grow < 1.0;
-      // 輝度（lightness）を 98% -> 88% に下げ、通常時の輝度も 80% -> 68% に抑えて目に優しい落ち着いた発光に変更
       const lightness = isSolidifying ? (88 - cell.grow * 20) : (68 + (cell.combo > 5 ? 8 : 0));
       const saturation = isSolidifying ? (45 + cell.grow * 45) : 90;
 
-      // 不透明度（a）も 0.7 倍にして背景に優しく馴染ませる
       const strokeColor = `hsla(${cellHue}, ${saturation}%, ${lightness}%, ${a * 0.7})`;
-      
-      // 塗りつぶしも、出現途中は柔らかい半透明、徐々に冷え固まるように色相にシフト
       const fillOpacity = (isSolidifying ? (0.15 - cell.grow * 0.1) : 0.05) * (1.0 + (cell.combo || 1) * 0.012) * cell.grow;
       const fillColor = `hsla(${(cellHue + 25) % 360}, 90%, 58%, ${a * fillOpacity})`;
 
@@ -1381,7 +1388,6 @@ function drawCrystals(t, skin) {
       ctx2d.globalAlpha = a;
       ctx2d.strokeStyle = strokeColor;
       
-      // 成長中は線が熱で膨張しているように少し太く見せる
       const baseLineWidth = isSolidifying ? (1.5 - cell.grow * 0.8) : 0.7;
       ctx2d.lineWidth   = (baseLineWidth + (cell.combo || 1) * 0.12) * cell.grow;
       ctx2d.fillStyle   = fillColor;
@@ -1396,7 +1402,54 @@ function drawCrystals(t, skin) {
       ctx2d.stroke();
       ctx2d.restore();
     });
+
+    // 満開になり、全てのセルの出現アニメーション（4秒）が終わった段階で、結晶全体をキャッシュ化する
+    if (nucleus.activated && allGrown && !nucleus.isCached) {
+      createNucleusCache(nucleus, skin);
+    }
   });
+}
+
+/* ============================================================
+   結晶のオフスクリーンキャッシュ生成（160個以上のセル描画を1回に凝縮）
+============================================================ */
+function createNucleusCache(nucleus, skin) {
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+  
+  const baseHue = getSkinHue(STATE.skinId);
+
+  nucleus.cells.forEach(cell => {
+    const r = cell.r;
+    const a = 0.9; // 安定後の最大の不透明度
+
+    const cellHue = (baseHue + cell.idx * 4.5 + (cell.combo ? cell.combo * 5 : 0)) % 360;
+    
+    // 目に優しい調整済みの安定した色設定
+    const strokeColor = `hsla(${cellHue}, 90%, 68%, ${a * 0.7})`;
+    const fillOpacity = 0.05 * (1.0 + (cell.combo || 1) * 0.012);
+    const fillColor = `hsla(${(cellHue + 25) % 360}, 90%, 58%, ${a * fillOpacity})`;
+
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth   = 0.7 + (cell.combo || 1) * 0.12;
+    ctx.fillStyle   = fillColor;
+
+    // 個別トランスフォーム
+    ctx.translate(cell.x, cell.y);
+    ctx.rotate(cell.rot);
+    
+    hexPath(ctx, 0, 0, r);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  nucleus.cacheCanvas = c;
+  nucleus.isCached = true;
 }
 
 /* ============================================================
