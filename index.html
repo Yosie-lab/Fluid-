@@ -724,7 +724,7 @@ function playCarbonatedSound() {
 
   const now = ctx.currentTime;
   const sampleRate = ctx.sampleRate;
-  const duration = 5.0; // 余韻を5秒に延長
+  const duration = 5.5; // 心地よい余韻のために5.5秒に延長
   const bufferSize = sampleRate * duration;
 
   // 左右で干渉しない完全独立のステレオノイズバッファ作成関数
@@ -737,21 +737,21 @@ function playCarbonatedSound() {
     return buf;
   };
 
-  // ステレオパン付きノイズ再生ヘルパー
-  const playStereoNoise = (panValue, minFreq, maxFreq, maxVolume) => {
+  // ステレオパン付きノイズ再生ヘルパー（ローパススイープダウン仕様）
+  const playStereoNoise = (panValue, startFreq, endFreq, maxVolume) => {
     const noise = ctx.createBufferSource();
     noise.buffer = makeNoiseBuffer();
 
     const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.Q.value = 1.6;
-    filter.frequency.setValueAtTime(minFreq, now);
-    filter.frequency.exponentialRampToValueAtTime(maxFreq, now + 4.0);
+    filter.type = 'lowpass'; // 温かみのある減衰のためにローパスを使用
+    filter.Q.value = 1.0;
+    filter.frequency.setValueAtTime(startFreq, now);
+    filter.frequency.exponentialRampToValueAtTime(endFreq, now + duration - 0.5);
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.exponentialRampToValueAtTime(maxVolume, now + 0.1); // 0.1秒で瞬時に立ち上げ
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    gain.gain.linearRampToValueAtTime(maxVolume, now + 0.12); // スムーズな立ち上がり
+    gain.gain.linearRampToValueAtTime(0.001, now + duration); // 直線的なフェードアウトで最後まで包み込む
 
     if (ctx.createStereoPanner) {
       const panner = ctx.createStereoPanner();
@@ -769,34 +769,38 @@ function playCarbonatedSound() {
     noise.stop(now + duration);
   };
 
-  // 3つの異なるパンと帯域で、圧倒的に広がりのある「シュワー」を合成
-  playStereoNoise(-0.75, 2800, 9500, 0.58); // 左（高音シュワー）
-  playStereoNoise(0.75, 2200, 8000, 0.58);  // 右（中高音シュワー）
-  playStereoNoise(0.0, 1200, 5000, 0.28);   // 中央（中低音の厚み・吹き出す勢い）
+  // 左右に極限まで広げ、高音から温かい低音へスイープダウンさせる3系統ノイズ
+  playStereoNoise(-0.9, 10000, 1200, 0.65); // 左（爽快なシュワーから包み込む低域へ）
+  playStereoNoise(0.9, 8500, 1000, 0.65);   // 右（心地よいシュワーから包み込む低域へ）
+  playStereoNoise(0.0, 5000, 600, 0.32);    // 中央（厚みのある中音域から消えていく）
 
-  // 2. 「パチパチ」弾ける無数の泡を120個ランダムにステレオ配置
-  for (let i = 0; i < 120; i++) {
-    const delay = Math.random() * 4.3;
+  // 2. 「パチパチ」弾ける無数の泡を 150 個に増量し、ステレオパンの限界まで広げてランダム配置
+  for (let i = 0; i < 150; i++) {
+    const delay = Math.random() * 5.0; // 5.0秒の間に分散（ほぼ最後まで配置）
     const time = now + delay;
     
     const bubbleOsc = ctx.createOscillator();
     const bubbleGain = ctx.createGain();
     
-    const freq = 4000 + Math.random() * 7000;
+    const freq = 3500 + Math.random() * 7000;
     bubbleOsc.type = 'sine';
     bubbleOsc.frequency.setValueAtTime(freq, time);
     
-    // 音量を大幅に強化
-    const fadeRatio = 1 - (delay / 4.5);
-    const peakVol = (0.028 + Math.random() * 0.032) * Math.max(0, fadeRatio);
+    // 消える前のプチプチ音を強調するため、delayによる減衰を緩やかに（最後まで約60%の音量を維持）
+    const fadeRatio = 1 - (delay / duration) * 0.45;
+    const peakVol = (0.038 + Math.random() * 0.042) * fadeRatio; // 弾ける音量を大幅強化
     
     bubbleGain.gain.setValueAtTime(0, time);
     bubbleGain.gain.linearRampToValueAtTime(peakVol, time + 0.002);
-    bubbleGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.008 + Math.random() * 0.025);
     
+    // 後半の泡ほど、パチッとした余韻（ディケイ）をわずかに長めにして存在感を出す
+    const decay = 0.012 + Math.random() * 0.022 + (delay * 0.004);
+    bubbleGain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+    
+    // 左右パンを極限（-0.96 〜 +0.96）まで広げ、耳の真横で弾けるリアルなASMR効果を実現
     if (ctx.createStereoPanner) {
       const panner = ctx.createStereoPanner();
-      const pan = (Math.random() * 2 - 1) * 0.85; // ランダムに左右に散布
+      const pan = (Math.random() * 2 - 1) * 0.96;
       panner.pan.setValueAtTime(pan, time);
       
       bubbleOsc.connect(bubbleGain);
@@ -808,7 +812,7 @@ function playCarbonatedSound() {
     }
     
     bubbleOsc.start(time);
-    bubbleOsc.stop(time + 0.05);
+    bubbleOsc.stop(time + 0.08);
   }
 }
 
