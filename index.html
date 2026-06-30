@@ -798,6 +798,9 @@ class CrystalNucleus {
     this.energy      = 0.0;
     this.combo       = 0;
     this.lastAbsorbAt = 0;
+    // 吸収沈名記録：60度ずつのセクター番号（0–5）を持つセット。
+    // 3方向以上から流体を届けないと満開しない「ゆっくりまんかい流体詘」ルール。
+    this.absorbedSectors = new Set();
     // 最初の中心セル（核の基準点）
     this.cells = [
       { x: this.x, y: this.y, r: CRYSTAL_STEP * 0.5, rot: Math.random() * Math.PI, grow: 0, combo: 1, idx: 0 }
@@ -808,25 +811,35 @@ class CrystalNucleus {
   absorb(pX, pY) {
     if (this.activated) return;
     
-    // コンボ判定（直近の吸い込みが 0.18秒以内ならコンボ加算）
+    // 吸収方向のセクターを記録（情緯的に“3方向から楽しんで」満開するルール）
+    const angle = Math.atan2(pY - this.y, pX - this.x); // -PI ～ PI
+    const sectorId = Math.floor(((angle + Math.PI) / (Math.PI * 2)) * 6) % 6; // 0–5の6方向
+    this.absorbedSectors.add(sectorId);
+    
+    // コンボ判定（直近の吸い込みが 0.4秒以内ならコンボ加算）
     const now = frameCount * 0.016;
-    if (now - this.lastAbsorbAt < 0.18) {
+    if (now - this.lastAbsorbAt < 0.4) {
       this.combo = Math.min(10, this.combo + 1);
     } else {
       this.combo = 1;
     }
     this.lastAbsorbAt = now;
 
-    this.energy = Math.min(1.0, this.energy + 0.007); // 約140個の粒子でゆっくり満開（鑑賞用）
-    vibrateCrystal(); // 軽いハプティクス
+    // 満開条件：3方向以上から吸収された流体の割合だけえなる。
+    // 1/3方向未満はエネルギーが增えず、吸収する値を変動させるだけ
+    const sectorRatio = Math.min(1.0, this.absorbedSectors.size / 3);
+    this.energy = Math.min(sectorRatio, this.energy + 0.004 * sectorRatio); // 方向が少ないうちは上限がブロックされる
     
-    // コンボするほど音階が木琴のように跳ね上がる、美しいSE演出
-    playAbsorbSound(this.freq * (0.7 + this.energy * 0.3 + this.combo * 0.06));
+    vibrateCrystal();
+    
+    // エネルギーと方向数に応じた美しい音階 SE
+    playAbsorbSound(this.freq * (0.6 + this.energy * 0.4 + this.absorbedSectors.size * 0.04));
 
-    // 吸い込まれた粒子の位置(pX, pY)とコンボ数を渡して結晶を成長させる
+    // 吸い込まれた粒子の位置とコンボ数を渡して結晶を成長させる
     this._growUnpredictable(pX, pY, this.combo);
 
-    if (this.energy >= 1.0) {
+    // 3方向から流体を届けた上でエネルギーが1.0に達したときに満開
+    if (this.energy >= 1.0 && this.absorbedSectors.size >= 3) {
       this.activate(now);
     }
   }
@@ -1117,19 +1130,19 @@ function updateParticles(t, skin) {
         
         const ddx = nucleus.x - p.x, ddy = nucleus.y - p.y;
         const dist2 = ddx * ddx + ddy * ddy;
-        const absorbRadius = CRYSTAL_RADIUS * 3.2; // 吸い込みが始まる判定範囲 (約83px)
+        const absorbRadius = CRYSTAL_RADIUS * 5.5; // 吸い込み開始判定範囲を大きく展開（螺旋の軌道を長く美しく見せる）
         
         if (dist2 < absorbRadius * absorbRadius) {
           const dist = Math.sqrt(dist2);
           
           if (p.manipulated) {
             // 中心に近づくほど、粒子サイズを徐々に小さくして「吸い込まれて消える」演出
-            if (dist < CRYSTAL_RADIUS * 1.6) {
-              const shrinkFrac = (dist - CRYSTAL_RADIUS * 0.5) / (CRYSTAL_RADIUS * 1.1);
-              p.r = PARTICLE_RADIUS * Math.max(0.1, Math.min(1.0, shrinkFrac)) * (0.5 + Math.random() * 0.8);
+            if (dist < CRYSTAL_RADIUS * 2.0) {
+              const shrinkFrac = (dist - CRYSTAL_RADIUS * 0.5) / (CRYSTAL_RADIUS * 1.5);
+              p.r = PARTICLE_RADIUS * Math.max(0.05, Math.min(1.0, shrinkFrac)) * (0.5 + Math.random() * 0.8);
             }
 
-            if (dist < CRYSTAL_RADIUS * 0.5) {
+            if (dist < CRYSTAL_RADIUS * 0.4) {
               // 十分に中心に近づいたら吸い込まれて消滅（核に吸収される）
               p.frozen = true;
               p.alpha = 0;
@@ -1137,24 +1150,24 @@ function updateParticles(t, skin) {
               nucleus.absorb(p.x, p.y);
             } else {
               // 渦巻き（スパイラル）吸い込み力: ごくゆっくりと螺旋を描きながら収束する気持ちいい軌道
-              const pullForce = (1 - dist / absorbRadius) ** 2.2 * 0.15;
+              const pullForce = (1 - dist / absorbRadius) ** 2.8 * 0.08; // 極めて緩やかな引力
               
               // 中心方向への引力
               p.vx += (ddx / dist) * pullForce;
               p.vy += (ddy / dist) * pullForce;
               
-              // 渦を巻く方向への接線力
+              // 渦を巻く方向への接線力（スパイラル演出）
               const tangentX = -ddy / dist;
               const tangentY = ddx / dist;
-              const swirlForce = (1 - dist / absorbRadius) * 0.18;
+              const swirlForce = (1 - dist / absorbRadius) * 0.12;
               p.vx += tangentX * swirlForce;
               p.vy += tangentY * swirlForce;
 
-              // 吸い込み範囲内では流体の最高速度を制限し、ゆっくりと美しく吸い込まれるようにする
+              // 吸い込み範囲内では最高速度を平和的に押さえ、ぼーっとゆらゆらと湯いように潍う
               const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-              if (speed > 0.8) {
-                p.vx *= 0.8 / speed;
-                p.vy *= 0.8 / speed;
+              if (speed > 0.45) {
+                p.vx *= 0.45 / speed;
+                p.vy *= 0.45 / speed;
               }
             }
           }
@@ -1190,7 +1203,7 @@ function drawCrystals(t, skin) {
     nucleus.cells.forEach(cell => {
       // 結合時のジワッとした出現アニメーション（速度を落とし、じっくり成長を鑑賞できるように調整）
       if (cell.grow < 1.0) {
-        cell.grow = Math.min(1.0, cell.grow + 0.008); // 約2秒かけてじわ〜っとゆっくり実体化
+        cell.grow = Math.min(1.0, cell.grow + 0.004); // 約4秒かけてじわ〜っとゆるやかに実体化
       }
 
       const r = cell.r * cell.grow;
