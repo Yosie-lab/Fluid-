@@ -510,6 +510,10 @@ function unlockAudio() {
       ctx.resume().then(() => {
         playDummySound(ctx);
         removeUnlockListeners();
+        // アンロック完了時に、まだタッチ中であればサウンド再生を開始する
+        if (isPointerDown) {
+          startFlowNoise();
+        }
       }).catch(err => {
         console.error("Audio Context Resume Failed:", err);
       });
@@ -545,7 +549,12 @@ let flowNoiseSource = null, flowNoiseGain = null, flowNoiseActive = false;
 function startFlowNoise() {
   if (!STATE.soundEnabled || flowNoiseActive) return;
   const ctx = getAudioCtx();
-  if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない（iOS保護）
+  if (!ctx) return;
+
+  if (ctx.state !== 'running') {
+    unlockAudio();
+    return; // アンロック処理を呼び出し、完了を待つために一旦抜ける
+  }
 
   const bufSize = ctx.sampleRate * 2;
   const buf  = ctx.createBuffer(1, bufSize, ctx.sampleRate);
