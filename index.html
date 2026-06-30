@@ -1143,17 +1143,39 @@ function updateParticles(t, skin) {
           const dist = Math.sqrt(dist2);
           
           if (p.manipulated) {
-            if (dist < CRYSTAL_RADIUS * 0.8) {
-              // 十分に核の中心に近づいたら吸い込まれて消滅（核に吸収される）
+            // 中心に近づくほど、粒子サイズを徐々に小さくして「吸い込まれて消える」演出
+            if (dist < CRYSTAL_RADIUS * 1.6) {
+              const shrinkFrac = (dist - CRYSTAL_RADIUS * 0.5) / (CRYSTAL_RADIUS * 1.1);
+              p.r = PARTICLE_RADIUS * Math.max(0.1, Math.min(1.0, shrinkFrac)) * (0.5 + Math.random() * 0.8);
+            }
+
+            if (dist < CRYSTAL_RADIUS * 0.5) {
+              // 十分に中心に近づいたら吸い込まれて消滅（核に吸収される）
               p.frozen = true;
               p.alpha = 0;
               // 吸い込み座標(p.x, p.y)を渡し、そこに向かって結晶を成長させる
               nucleus.absorb(p.x, p.y);
             } else {
-              // 吸い込み範囲内に入ったパーティクルは、核の中心に向かって引きずり込まれる（吸い込み演出）
-              const pullForce = (1 - dist / absorbRadius) ** 2.0 * 2.2;
+              // 渦巻き（スパイラル）吸い込み力: ゆっくりと螺旋を描きながら収束する気持ちいい軌道
+              const pullForce = (1 - dist / absorbRadius) ** 1.8 * 0.38;
+              
+              // 中心方向への引力
               p.vx += (ddx / dist) * pullForce;
               p.vy += (ddy / dist) * pullForce;
+              
+              // 渦を巻く方向への接線力
+              const tangentX = -ddy / dist;
+              const tangentY = ddx / dist;
+              const swirlForce = (1 - dist / absorbRadius) * 0.32;
+              p.vx += tangentX * swirlForce;
+              p.vy += tangentY * swirlForce;
+
+              // 吸い込み範囲内では流体の最高速度を制限し、ゆっくりと美しく吸い込まれるようにする
+              const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+              if (speed > 1.8) {
+                p.vx *= 1.8 / speed;
+                p.vy *= 1.8 / speed;
+              }
             }
           }
         }
@@ -1186,30 +1208,36 @@ function drawCrystals(t, skin) {
     const baseHue = getSkinHue(STATE.skinId);
 
     nucleus.cells.forEach(cell => {
-      // 結合時のジワッとした出現アニメーション
+      // 結合時のジワッとした出現アニメーション（速度を落とし、じっくり成長を鑑賞できるように調整）
       if (cell.grow < 1.0) {
-        cell.grow = Math.min(1.0, cell.grow + 0.08);
+        cell.grow = Math.min(1.0, cell.grow + 0.024); // 約0.8秒かけてゆっくり実体化
       }
 
       const r = cell.r * cell.grow;
       const a = 0.12 + cell.grow * 0.78;
 
-      // 色彩の計算: 成長の順番(cell.idx)に応じて色相をなめらかに回す（虹色/オーロラグラデーション）
-      // コンボが多いほど、より鮮やかで明るい色にシフトする
+      // 色彩の計算: 成長の順番(cell.idx)に応じて色相をなめらかに回す
       const comboBonus = cell.combo ? cell.combo * 5 : 0;
       const cellHue = (baseHue + cell.idx * 4.5 + comboBonus) % 360;
       
-      // コンボが高い（一気にいっぱい集めた）ほど光り輝く太い線にする
-      const isHighCombo = cell.combo > 5;
-      const strokeColor = `hsla(${cellHue}, 96%, ${isHighCombo ? '92%' : '80%'}, ${a})`;
+      // 【凝固発光演出】: まだ実体化しきっていない（grow < 1）の時は、白熱した熱い光として白っぽく発光
+      const isSolidifying = cell.grow < 1.0;
+      const lightness = isSolidifying ? (98 - cell.grow * 18) : (80 + (cell.combo > 5 ? 12 : 0));
+      const saturation = isSolidifying ? (50 + cell.grow * 46) : 96;
+
+      const strokeColor = `hsla(${cellHue}, ${saturation}%, ${lightness}%, ${a})`;
       
-      const fillOpacity = (0.08 + (cell.combo || 1) * 0.015) * cell.grow;
+      // 塗りつぶしも、出現途中はエネルギーが満ちて白く光り、徐々に冷え固まるように色相にシフト
+      const fillOpacity = (isSolidifying ? (0.24 - cell.grow * 0.15) : 0.08) * (1.0 + (cell.combo || 1) * 0.015) * cell.grow;
       const fillColor = `hsla(${(cellHue + 25) % 360}, 96%, 64%, ${a * fillOpacity})`;
 
       ctx2d.save();
       ctx2d.globalAlpha = a;
       ctx2d.strokeStyle = strokeColor;
-      ctx2d.lineWidth   = (0.8 + (cell.combo || 1) * 0.18) * cell.grow; // コンボで線が太く眩しくなる
+      
+      // 成長中は線が熱で膨張しているように少し太く見せる
+      const baseLineWidth = isSolidifying ? (1.8 - cell.grow * 1.0) : 0.8;
+      ctx2d.lineWidth   = (baseLineWidth + (cell.combo || 1) * 0.18) * cell.grow;
       ctx2d.fillStyle   = fillColor;
 
       // セルごとの個別座標・不規則回転を適用
