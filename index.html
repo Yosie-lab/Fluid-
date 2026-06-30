@@ -965,7 +965,11 @@ class CrystalNucleus {
     playClearChord(); // 美しいクリア和音を重ねる
 
     // 開花ボーナス（5倍に強化）：花（結晶核）の周囲から新しい流動粒子がブワッと全面に美しく大噴出する！
-    const bonusCount = 600; // 溢れ出る粒子の数
+    // 動作が重くなるのを完全に防ぐため、画面上のアクティブ粒子数が最大600個を超えないように上限キャップを適用
+    const activeCount = particles.filter(p => !p.frozen).length;
+    const maxActiveLimit = 600;
+    const bonusCount = Math.max(0, Math.min(500, maxActiveLimit - activeCount));
+
     for (let i = 0; i < bonusCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       // 速度を「ほぼ静止（0.2）」から「ハイスピード（5.5）」まで不均等（ベキ乗）に分散させ、画面全体へ美しく拡散させる
@@ -1326,17 +1330,13 @@ function updateParticles(t, skin) {
 
     /* 描画 */
     const ratio = Math.min(speed / 5.0, 1);
-    const grad  = ctx2d.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3.5); // 半径を少し広げてグロー感を補正
-    // アルファ値を半分近くに落とし、眩しさを抑えた柔らかい光（ソフトフォーカス）に変更
-    grad.addColorStop(0,   hexAlpha(skin.fluidA, p.alpha * 0.52));
-    grad.addColorStop(0.4,  hexAlpha(skin.fluidB, p.alpha * 0.28));
-    grad.addColorStop(1,   hexAlpha(skin.fluidB, 0));
-
+    
     ctx2d.save();
-    ctx2d.fillStyle   = grad;
+    // 個別のグラデーション（createRadialGradient）を廃止し、単色のアルファ半透明で超高速描画（カクつきを根本から解消）
+    // 速度（ratio）に応じて少し明るく、かつ尾を引くような流動感を表現
+    ctx2d.fillStyle = hexAlpha(skin.fluidA, p.alpha * (0.42 + ratio * 0.15));
     ctx2d.beginPath();
-    // 粒子の表示サイズを少し小さくし（0.8倍）、密集したときのチカチカ感を和らげる
-    ctx2d.arc(p.x, p.y, p.r * 0.8 * (1 + ratio * 0.25), 0, Math.PI * 2);
+    ctx2d.arc(p.x, p.y, p.r * 0.72 * (1 + ratio * 0.25), 0, Math.PI * 2);
     ctx2d.fill();
     ctx2d.restore();
   });
