@@ -1400,12 +1400,13 @@ function drawPointerGlow(skin) {
   const gr    = 65 + speed * 1.5;
 
   const grad = ctx2d.createRadialGradient(pointerX, pointerY, 0, pointerX, pointerY, gr);
-  // 指の周りのグローの強さも半減させ、目の負担を減らす（0.38 -> 0.18）
-  grad.addColorStop(0,   hexAlpha(skin.fluidA, 0.18));
-  grad.addColorStop(0.5, hexAlpha(skin.fluidA, 0.04));
+  grad.addColorStop(0,   hexAlpha(skin.fluidA, 0.38));
+  grad.addColorStop(0.5, hexAlpha(skin.fluidA, 0.09));
   grad.addColorStop(1,   hexAlpha(skin.fluidA, 0));
 
   ctx2d.save();
+  ctx2d.shadowBlur  = 28 + speed * 0.5;
+  ctx2d.shadowColor = skin.glow;
   ctx2d.fillStyle   = grad;
   ctx2d.beginPath();
   ctx2d.arc(pointerX, pointerY, gr, 0, Math.PI * 2);
