@@ -723,59 +723,92 @@ function playCarbonatedSound() {
   if (!ctx || ctx.state !== 'running') return;
 
   const now = ctx.currentTime;
-
-  // 1. メインの「シュワー」というホワイトノイズによる泡立ち感
   const sampleRate = ctx.sampleRate;
-  const duration = 4.5;
+  const duration = 5.0; // 余韻を5秒に延長
   const bufferSize = sampleRate * duration;
-  const buffer = ctx.createBuffer(1, bufferSize, sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    data[i] = Math.random() * 2 - 1;
-  }
 
-  const noise = ctx.createBufferSource();
-  noise.buffer = buffer;
+  // 左右で干渉しない完全独立のステレオノイズバッファ作成関数
+  const makeNoiseBuffer = () => {
+    const buf = ctx.createBuffer(1, bufferSize, sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buf;
+  };
 
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.Q.value = 2.0;
-  filter.frequency.setValueAtTime(2500, now);
-  filter.frequency.exponentialRampToValueAtTime(8500, now + 3.5);
+  // ステレオパン付きノイズ再生ヘルパー
+  const playStereoNoise = (panValue, minFreq, maxFreq, maxVolume) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = makeNoiseBuffer();
 
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.001, now);
-  gain.gain.exponentialRampToValueAtTime(0.35, now + 0.12);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 4.5);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 1.6;
+    filter.frequency.setValueAtTime(minFreq, now);
+    filter.frequency.exponentialRampToValueAtTime(maxFreq, now + 4.0);
 
-  noise.connect(filter);
-  filter.connect(gain);
-  gain.connect(ctx.destination);
-  noise.start(now);
-  noise.stop(now + 4.5);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(maxVolume, now + 0.1); // 0.1秒で瞬時に立ち上げ
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-  // 2. 「パチパチ」と弾ける無数の細かな泡の音をランダムに散布
-  for (let i = 0; i < 80; i++) {
-    const delay = Math.random() * 4.0;
+    if (ctx.createStereoPanner) {
+      const panner = ctx.createStereoPanner();
+      panner.pan.setValueAtTime(panValue, now);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(panner);
+      panner.connect(ctx.destination);
+    } else {
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+    }
+    noise.start(now);
+    noise.stop(now + duration);
+  };
+
+  // 3つの異なるパンと帯域で、圧倒的に広がりのある「シュワー」を合成
+  playStereoNoise(-0.75, 2800, 9500, 0.58); // 左（高音シュワー）
+  playStereoNoise(0.75, 2200, 8000, 0.58);  // 右（中高音シュワー）
+  playStereoNoise(0.0, 1200, 5000, 0.28);   // 中央（中低音の厚み・吹き出す勢い）
+
+  // 2. 「パチパチ」弾ける無数の泡を120個ランダムにステレオ配置
+  for (let i = 0; i < 120; i++) {
+    const delay = Math.random() * 4.3;
     const time = now + delay;
     
     const bubbleOsc = ctx.createOscillator();
     const bubbleGain = ctx.createGain();
     
-    const freq = 4500 + Math.random() * 5500;
+    const freq = 4000 + Math.random() * 7000;
     bubbleOsc.type = 'sine';
     bubbleOsc.frequency.setValueAtTime(freq, time);
     
-    const peakVol = (0.012 + Math.random() * 0.018) * (1 - delay / 4.0);
+    // 音量を大幅に強化
+    const fadeRatio = 1 - (delay / 4.5);
+    const peakVol = (0.028 + Math.random() * 0.032) * Math.max(0, fadeRatio);
+    
     bubbleGain.gain.setValueAtTime(0, time);
     bubbleGain.gain.linearRampToValueAtTime(peakVol, time + 0.002);
-    bubbleGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.01 + Math.random() * 0.03);
+    bubbleGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.008 + Math.random() * 0.025);
     
-    bubbleOsc.connect(bubbleGain);
-    bubbleGain.connect(ctx.destination);
+    if (ctx.createStereoPanner) {
+      const panner = ctx.createStereoPanner();
+      const pan = (Math.random() * 2 - 1) * 0.85; // ランダムに左右に散布
+      panner.pan.setValueAtTime(pan, time);
+      
+      bubbleOsc.connect(bubbleGain);
+      bubbleGain.connect(panner);
+      panner.connect(ctx.destination);
+    } else {
+      bubbleOsc.connect(bubbleGain);
+      bubbleGain.connect(ctx.destination);
+    }
     
     bubbleOsc.start(time);
-    bubbleOsc.stop(time + 0.06);
+    bubbleOsc.stop(time + 0.05);
   }
 }
 
