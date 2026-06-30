@@ -1003,14 +1003,12 @@ function updateParticles(t, skin) {
 
     /* 描画 */
     const ratio = Math.min(speed / 5.0, 1);
-    const grad  = ctx2d.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.8);
-    grad.addColorStop(0,   hexAlpha(skin.fluidA, p.alpha * 0.92));
-    grad.addColorStop(0.55, hexAlpha(skin.fluidB, p.alpha * 0.5));
+    const grad  = ctx2d.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3.5); // 半径を少し広げてグロー感を補正
+    grad.addColorStop(0,   hexAlpha(skin.fluidA, p.alpha * 0.95));
+    grad.addColorStop(0.4,  hexAlpha(skin.fluidB, p.alpha * 0.6));
     grad.addColorStop(1,   hexAlpha(skin.fluidB, 0));
 
     ctx2d.save();
-    ctx2d.shadowBlur  = 16 + ratio * 18;
-    ctx2d.shadowColor = skin.glow;
     ctx2d.fillStyle   = grad;
     ctx2d.beginPath();
     ctx2d.arc(p.x, p.y, p.r * (1 + ratio * 0.35), 0, Math.PI * 2);
@@ -1036,11 +1034,9 @@ function drawCrystals(t, skin) {
 
       ctx2d.save();
       ctx2d.globalAlpha = a;
-      ctx2d.shadowBlur  = 10 * growFrac;
-      ctx2d.shadowColor = skin.crystalA;
       ctx2d.strokeStyle = skin.crystalA;
       ctx2d.lineWidth   = 0.9 * growFrac;
-      ctx2d.fillStyle   = hexAlpha(skin.crystalB, 0.055 * growFrac);
+      ctx2d.fillStyle   = hexAlpha(skin.crystalB, 0.085 * growFrac); // 影を消した分、少し塗りつぶしを明るく
 
       hexPath(ctx2d, cell.x, cell.y, r);
       ctx2d.fill();
