@@ -518,12 +518,13 @@ function unlockAudio() {
 
 function playDummySound(ctx) {
   try {
-    // 1サンプルの無音バッファを再生して安全に再生制限を解除
-    const buffer = ctx.createBuffer(1, 1, 22050);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    osc.start(0);
+    osc.stop(ctx.currentTime + 0.05);
   } catch (e) {}
 }
 
@@ -1655,6 +1656,7 @@ canvas.addEventListener('touchend', () => {
   isPointerDown = false;
   isPointerActive = false;
   stopFlowNoise();
+  unlockAudio();
 }, { passive: true });
 
 
