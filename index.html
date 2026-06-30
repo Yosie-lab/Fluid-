@@ -560,6 +560,31 @@ function getAudioCtx() {
   return audioCtx;
 }
 
+let reverbNode = null;
+
+/* 畳み込みリバーブ用インパルス応答（3.2秒の深いステレオ残響） */
+function createReverbBuffer(ctx, duration, decay) {
+  const sampleRate = ctx.sampleRate;
+  const len = sampleRate * duration;
+  const buf = ctx.createBuffer(2, len, sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const data = buf.getChannelData(c);
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return buf;
+}
+
+function getReverbNode(ctx) {
+  if (reverbNode) return reverbNode;
+  const convolver = ctx.createConvolver();
+  convolver.buffer = createReverbBuffer(ctx, 3.2, 2.0); // 3.2秒の深く心地よい残響
+  convolver.connect(ctx.destination);
+  reverbNode = convolver;
+  return reverbNode;
+}
+
 /* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
 function unlockAudio() {
   const ctx = getAudioCtx();
@@ -681,7 +706,7 @@ function playCrystalSound(freq) {
   osc.start(); osc.stop(ctx.currentTime + 1.2);
 }
 
-/* 流体が吸い込まれるときの心地よい音 */
+/* 流体が吸い込まれるときの心地よい音（リバーブ対応） */
 function playAbsorbSound(freq) {
   if (!STATE.soundEnabled) return;
   const ctx  = getAudioCtx();
@@ -691,32 +716,64 @@ function playAbsorbSound(freq) {
   const gain = ctx.createGain();
   osc.type = 'sine';
   osc.frequency.value = freq;
-  gain.gain.setValueAtTime(0.08, ctx.currentTime);
+  gain.gain.setValueAtTime(0.06, ctx.currentTime); // 原音を少し控えめに
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
+  // リバーブウェット接続
+  const wetGain = ctx.createGain();
+  wetGain.gain.setValueAtTime(0.18, ctx.currentTime); // 深めのリバーブ
+  wetGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
   osc.connect(gain);
   gain.connect(ctx.destination);
+
+  osc.connect(wetGain);
+  wetGain.connect(getReverbNode(ctx));
+
   osc.start();
   osc.stop(ctx.currentTime + 0.15);
 }
 
+/* クリア時の美しい和音（リバーブ対応） */
 function playClearChord() {
   if (!STATE.soundEnabled) return;
   const ctx  = getAudioCtx();
   if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない
 
   const base = SKINS[STATE.skinId].soundFreq;
+  const reverb = getReverbNode(ctx);
+
   [1, 1.26, 1.5, 1.89, 2.0].forEach((ratio, i) => {
     const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const dryGain = ctx.createGain();
+    const wetGain = ctx.createGain();
+
     osc.type = 'sine'; osc.frequency.value = base * ratio;
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.08 + i * 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(); osc.stop(ctx.currentTime + 3.5);
+
+    const now = ctx.currentTime;
+    const onset = 0.08 + i * 0.06;
+
+    // ドライ音の音量エンベロープ
+    dryGain.gain.setValueAtTime(0, now);
+    dryGain.gain.linearRampToValueAtTime(0.06, now + onset);
+    dryGain.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+
+    // ウェット（リバーブ）音の音量エンベロープ（クリア和音に超深リバーブを適用）
+    wetGain.gain.setValueAtTime(0, now);
+    wetGain.gain.linearRampToValueAtTime(0.24, now + onset); // 深く残響へ流し込む
+    wetGain.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+
+    osc.connect(dryGain);
+    dryGain.connect(ctx.destination);
+
+    osc.connect(wetGain);
+    wetGain.connect(reverb);
+
+    osc.start(); osc.stop(now + 3.5);
   });
 }
 
+/* クリア時の炭酸音（さらに小さく調整、かつリバーブ対応） */
 function playCarbonatedSound() {
   if (!STATE.soundEnabled) return;
   const ctx = getAudioCtx();
@@ -726,6 +783,7 @@ function playCarbonatedSound() {
   const sampleRate = ctx.sampleRate;
   const duration = 5.5; // 心地よい余韻のために5.5秒に延長
   const bufferSize = sampleRate * duration;
+  const reverb = getReverbNode(ctx);
 
   // 左右で干渉しない完全独立のステレオノイズバッファ作成関数
   const makeNoiseBuffer = () => {
@@ -737,7 +795,7 @@ function playCarbonatedSound() {
     return buf;
   };
 
-  // ステレオパン付きノイズ再生ヘルパー（ローパススイープダウン仕様）
+  // ステレオパン付きノイズ再生ヘルパー（ローパススイープダウン仕様、音量微小化）
   const playStereoNoise = (panValue, startFreq, endFreq, maxVolume) => {
     const noise = ctx.createBufferSource();
     noise.buffer = makeNoiseBuffer();
@@ -748,56 +806,81 @@ function playCarbonatedSound() {
     filter.frequency.setValueAtTime(startFreq, now);
     filter.frequency.exponentialRampToValueAtTime(endFreq, now + duration - 0.5);
 
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(maxVolume, now + 0.12); // スムーズな立ち上がり
-    gain.gain.linearRampToValueAtTime(0.001, now + duration); // 直線的なフェードアウトで最後まで包み込む
+    const dryGain = ctx.createGain();
+    dryGain.gain.setValueAtTime(0.001, now);
+    dryGain.gain.linearRampToValueAtTime(maxVolume, now + 0.12); // スムーズな立ち上がり
+    dryGain.gain.linearRampToValueAtTime(0.001, now + duration); // 直線的なフェードアウトで最後まで包み込む
+
+    // ノイズ用リバーブウェット
+    const wetGain = ctx.createGain();
+    wetGain.gain.setValueAtTime(0.001, now);
+    wetGain.gain.linearRampToValueAtTime(maxVolume * 0.4, now + 0.12); // ノイズの残響成分
+    wetGain.gain.linearRampToValueAtTime(0.001, now + duration);
 
     if (ctx.createStereoPanner) {
       const panner = ctx.createStereoPanner();
       panner.pan.setValueAtTime(panValue, now);
       noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(panner);
+      filter.connect(dryGain);
+      dryGain.connect(panner);
       panner.connect(ctx.destination);
+
+      // ウェット（リバーブ）接続
+      const wetFilter = ctx.createBiquadFilter();
+      wetFilter.type = 'lowpass';
+      wetFilter.Q.value = 1.0;
+      wetFilter.frequency.setValueAtTime(startFreq, now);
+      wetFilter.frequency.exponentialRampToValueAtTime(endFreq, now + duration - 0.5);
+      noise.connect(wetFilter);
+      wetFilter.connect(wetGain);
+      wetGain.connect(reverb);
     } else {
       noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
+      filter.connect(dryGain);
+      dryGain.connect(ctx.destination);
+
+      noise.connect(filter);
+      filter.connect(wetGain);
+      wetGain.connect(reverb);
     }
     noise.start(now);
     noise.stop(now + duration);
   };
 
-  // 左右に極限まで広げ、高音から温かい低音へスイープダウンさせる3系統ノイズ（音量をマイルドに調整）
-  playStereoNoise(-0.9, 10000, 1200, 0.35); // 左（0.65 -> 0.35）
-  playStereoNoise(0.9, 8500, 1000, 0.35);   // 右（0.65 -> 0.35）
-  playStereoNoise(0.0, 5000, 600, 0.18);    // 中央（0.32 -> 0.18）
+  // 左右に極限まで広げ、高音から温かい低音へスイープダウンさせる3系統ノイズ（さらにもう少し小さく: 0.35->0.22, 0.18->0.10）
+  playStereoNoise(-0.9, 10000, 1200, 0.22); // 左
+  playStereoNoise(0.9, 8500, 1000, 0.22);   // 右
+  playStereoNoise(0.0, 5000, 600, 0.10);    // 中央
 
-  // 2. 「パチパチ」弾ける無数の泡を 180 個に増量し、アタック・ピッチスイープを極限維持したまま音量調整
+  // 2. 「パチパチ」弾ける無数の泡を 180 個（さらにもう少し小さく: 0.05~0.10 -> 0.03~0.06 に調整）
   for (let i = 0; i < 180; i++) {
     const delay = Math.random() * 5.1; // 5.1秒の間に分散（消える直前まで配置）
     const time = now + delay;
     
     const bubbleOsc = ctx.createOscillator();
-    const bubbleGain = ctx.createGain();
+    const dryGain = ctx.createGain();
+    const wetGain = ctx.createGain();
     
     const startFreq = 4500 + Math.random() * 6500; // 4500Hz 〜 11000Hzの超高音域
     bubbleOsc.type = 'sine';
     
-    // 【極限強調】4msの高速ピッチスイープで「パチッ」というリアルな破裂衝撃音を作る
+    // 4msの高速ピッチスイープで「パチッ」というリアルな破裂衝撃音を作る
     bubbleOsc.frequency.setValueAtTime(startFreq, time);
     bubbleOsc.frequency.exponentialRampToValueAtTime(startFreq * 0.25, time + 0.004);
     
-    // 【調整】アタック感は維持したまま、耳に優しい音量（0.05 〜 0.10）に微調整
-    const peakVol = 0.05 + Math.random() * 0.05;
+    // 【調整】さらにもう少しだけ小さく（0.03 〜 0.06 レンジに調整）
+    const peakVol = 0.03 + Math.random() * 0.03;
     
-    // 1msで音量を立ち上げてアタックを非常に鋭くする
-    bubbleGain.gain.setValueAtTime(0, time);
-    bubbleGain.gain.linearRampToValueAtTime(peakVol, time + 0.001);
-    
+    // ドライ音
+    dryGain.gain.setValueAtTime(0, time);
+    dryGain.gain.linearRampToValueAtTime(peakVol, time + 0.001);
     const decay = 0.015 + Math.random() * 0.025;
-    bubbleGain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+    dryGain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+    
+    // ウェット（リバーブ）音
+    wetGain.gain.setValueAtTime(0, time);
+    wetGain.gain.linearRampToValueAtTime(peakVol * 0.6, time + 0.001); // 泡音の深い響き
+    wetGain.gain.exponentialRampToValueAtTime(0.0001, time + decay + 0.05); // 残響用のトリガー
     
     // 左右パン極限（真左・真右）のASMRステレオ配置
     if (ctx.createStereoPanner) {
@@ -805,13 +888,17 @@ function playCarbonatedSound() {
       const pan = (Math.random() * 2 - 1) * 0.96;
       panner.pan.setValueAtTime(pan, time);
       
-      bubbleOsc.connect(bubbleGain);
-      bubbleGain.connect(panner);
+      bubbleOsc.connect(dryGain);
+      dryGain.connect(panner);
       panner.connect(ctx.destination);
     } else {
-      bubbleOsc.connect(bubbleGain);
-      bubbleGain.connect(ctx.destination);
+      bubbleOsc.connect(dryGain);
+      dryGain.connect(ctx.destination);
     }
+
+    // ウェット音を共通リバーブノードに接続
+    bubbleOsc.connect(wetGain);
+    wetGain.connect(reverb);
     
     bubbleOsc.start(time);
     bubbleOsc.stop(time + 0.08);
