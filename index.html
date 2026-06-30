@@ -826,9 +826,9 @@ class CrystalNucleus {
     this.lastAbsorbAt = now;
 
     // 満開条件：3方向以上から吸収された流体の割合だけえなる。
-    // 1/3方向未満はエネルギーが增えず、吸収する値を変動させるだけ
+    // 必要粒子数を3分の2にするため、1粒子あたりのエネルギー増加量を 0.004 から 0.006 に強化（約160粒子で満開）
     const sectorRatio = Math.min(1.0, this.absorbedSectors.size / 3);
-    this.energy = Math.min(sectorRatio, this.energy + 0.004 * sectorRatio); // 方向が少ないうちは上限がブロックされる
+    this.energy = Math.min(sectorRatio, this.energy + 0.006 * sectorRatio); // 方向が少ないうちは上限がブロックされる
     
     vibrateCrystal();
     
@@ -852,8 +852,8 @@ class CrystalNucleus {
     vibrateClear(); // 完全開花時の強めのハプティクス
     playClearChord(); // 美しいクリア和音を重ねる
 
-    // 開花ボーナス：花（結晶核）の周囲から新しい流動粒子がブワッと溢れ出る！
-    const bonusCount = 120; // 溢れ出る粒子の数
+    // 開花ボーナス（5倍に強化）：花（結晶核）の周囲から新しい流動粒子がブワッと大噴出する！
+    const bonusCount = 600; // 溢れ出る粒子の数（120個から600個へ5倍にアップ）
     for (let i = 0; i < bonusCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 0.5 + Math.random() * 2.0; // 外側に放射状に広がる速度
