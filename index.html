@@ -1209,14 +1209,16 @@ function updateParticles(t, skin) {
     /* 描画 */
     const ratio = Math.min(speed / 5.0, 1);
     const grad  = ctx2d.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3.5); // 半径を少し広げてグロー感を補正
-    grad.addColorStop(0,   hexAlpha(skin.fluidA, p.alpha * 0.95));
-    grad.addColorStop(0.4,  hexAlpha(skin.fluidB, p.alpha * 0.6));
+    // アルファ値を半分近くに落とし、眩しさを抑えた柔らかい光（ソフトフォーカス）に変更
+    grad.addColorStop(0,   hexAlpha(skin.fluidA, p.alpha * 0.52));
+    grad.addColorStop(0.4,  hexAlpha(skin.fluidB, p.alpha * 0.28));
     grad.addColorStop(1,   hexAlpha(skin.fluidB, 0));
 
     ctx2d.save();
     ctx2d.fillStyle   = grad;
     ctx2d.beginPath();
-    ctx2d.arc(p.x, p.y, p.r * (1 + ratio * 0.35), 0, Math.PI * 2);
+    // 粒子の表示サイズを少し小さくし（0.8倍）、密集したときのチカチカ感を和らげる
+    ctx2d.arc(p.x, p.y, p.r * 0.8 * (1 + ratio * 0.25), 0, Math.PI * 2);
     ctx2d.fill();
     ctx2d.restore();
   });
@@ -1246,22 +1248,24 @@ function drawCrystals(t, skin) {
       
       // 【凝固発光演出】: まだ実体化しきっていない（grow < 1）の時は、白熱した熱い光として白っぽく発光
       const isSolidifying = cell.grow < 1.0;
-      const lightness = isSolidifying ? (98 - cell.grow * 18) : (80 + (cell.combo > 5 ? 12 : 0));
-      const saturation = isSolidifying ? (50 + cell.grow * 46) : 96;
+      // 輝度（lightness）を 98% -> 88% に下げ、通常時の輝度も 80% -> 68% に抑えて目に優しい落ち着いた発光に変更
+      const lightness = isSolidifying ? (88 - cell.grow * 20) : (68 + (cell.combo > 5 ? 8 : 0));
+      const saturation = isSolidifying ? (45 + cell.grow * 45) : 90;
 
-      const strokeColor = `hsla(${cellHue}, ${saturation}%, ${lightness}%, ${a})`;
+      // 不透明度（a）も 0.7 倍にして背景に優しく馴染ませる
+      const strokeColor = `hsla(${cellHue}, ${saturation}%, ${lightness}%, ${a * 0.7})`;
       
-      // 塗りつぶしも、出現途中はエネルギーが満ちて白く光り、徐々に冷え固まるように色相にシフト
-      const fillOpacity = (isSolidifying ? (0.24 - cell.grow * 0.15) : 0.08) * (1.0 + (cell.combo || 1) * 0.015) * cell.grow;
-      const fillColor = `hsla(${(cellHue + 25) % 360}, 96%, 64%, ${a * fillOpacity})`;
+      // 塗りつぶしも、出現途中は柔らかい半透明、徐々に冷え固まるように色相にシフト
+      const fillOpacity = (isSolidifying ? (0.15 - cell.grow * 0.1) : 0.05) * (1.0 + (cell.combo || 1) * 0.012) * cell.grow;
+      const fillColor = `hsla(${(cellHue + 25) % 360}, 90%, 58%, ${a * fillOpacity})`;
 
       ctx2d.save();
       ctx2d.globalAlpha = a;
       ctx2d.strokeStyle = strokeColor;
       
       // 成長中は線が熱で膨張しているように少し太く見せる
-      const baseLineWidth = isSolidifying ? (1.8 - cell.grow * 1.0) : 0.8;
-      ctx2d.lineWidth   = (baseLineWidth + (cell.combo || 1) * 0.18) * cell.grow;
+      const baseLineWidth = isSolidifying ? (1.5 - cell.grow * 0.8) : 0.7;
+      ctx2d.lineWidth   = (baseLineWidth + (cell.combo || 1) * 0.12) * cell.grow;
       ctx2d.fillStyle   = fillColor;
 
       // セルごとの個別座標・不規則回転を適用
@@ -1288,29 +1292,30 @@ function drawNuclei(t, skin) {
     const baseAlpha = nucleiEnabled ? 0.55 + pulse * 0.45 : 0.18 + pulse * 0.18;
 
     ctx2d.save();
-    ctx2d.shadowBlur  = (nucleiEnabled ? 28 : 12) + pulse * 28;
+    // 結晶核の影の強さを抑え、マイルドにする（28->14, 12->6）
+    ctx2d.shadowBlur  = (nucleiEnabled ? 14 : 6) + pulse * 14;
     ctx2d.shadowColor = skin.glow;
     ctx2d.strokeStyle = skin.glow;
 
     /* 内リング */
-    ctx2d.globalAlpha = baseAlpha;
-    ctx2d.lineWidth   = nucleiEnabled ? 1.8 : 0.9;
+    ctx2d.globalAlpha = baseAlpha * 0.8;
+    ctx2d.lineWidth   = nucleiEnabled ? 1.4 : 0.8;
     ctx2d.beginPath();
     ctx2d.arc(nucleus.x, nucleus.y, CRYSTAL_RADIUS * (0.68 + pulse * 0.32), 0, Math.PI * 2);
     ctx2d.stroke();
 
     /* 外リング */
-    ctx2d.globalAlpha = baseAlpha * 0.3;
+    ctx2d.globalAlpha = baseAlpha * 0.2;
     ctx2d.beginPath();
-    ctx2d.arc(nucleus.x, nucleus.y, CRYSTAL_RADIUS * 2.2 + pulse * 16, 0, Math.PI * 2);
+    ctx2d.arc(nucleus.x, nucleus.y, CRYSTAL_RADIUS * 2.2 + pulse * 12, 0, Math.PI * 2);
     ctx2d.stroke();
 
     /* 中心点 */
-    ctx2d.globalAlpha = nucleiEnabled ? 0.9 : 0.35;
+    ctx2d.globalAlpha = nucleiEnabled ? 0.75 : 0.25;
     ctx2d.fillStyle   = skin.glow;
-    ctx2d.shadowBlur  = nucleiEnabled ? 44 : 14;
+    ctx2d.shadowBlur  = nucleiEnabled ? 20 : 8;
     ctx2d.beginPath();
-    ctx2d.arc(nucleus.x, nucleus.y, nucleiEnabled ? 5 : 2.5, 0, Math.PI * 2);
+    ctx2d.arc(nucleus.x, nucleus.y, nucleiEnabled ? 4 : 2.0, 0, Math.PI * 2);
     ctx2d.fill();
 
     ctx2d.restore();
@@ -1326,13 +1331,12 @@ function drawPointerGlow(skin) {
   const gr    = 65 + speed * 1.5;
 
   const grad = ctx2d.createRadialGradient(pointerX, pointerY, 0, pointerX, pointerY, gr);
-  grad.addColorStop(0,   hexAlpha(skin.fluidA, 0.38));
-  grad.addColorStop(0.5, hexAlpha(skin.fluidA, 0.09));
+  // 指の周りのグローの強さも半減させ、目の負担を減らす（0.38 -> 0.18）
+  grad.addColorStop(0,   hexAlpha(skin.fluidA, 0.18));
+  grad.addColorStop(0.5, hexAlpha(skin.fluidA, 0.04));
   grad.addColorStop(1,   hexAlpha(skin.fluidA, 0));
 
   ctx2d.save();
-  ctx2d.shadowBlur  = 28 + speed * 0.5;
-  ctx2d.shadowColor = skin.glow;
   ctx2d.fillStyle   = grad;
   ctx2d.beginPath();
   ctx2d.arc(pointerX, pointerY, gr, 0, Math.PI * 2);
