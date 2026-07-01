@@ -1290,6 +1290,14 @@ class Particle {
 class CrystalNucleus {
   constructor(x, y, freq) {
     this.x = x; this.y = y; this.freq = freq;
+    
+    // 形状タイプをランダムに決定
+    const shapes = ['circle', 'rect', 'triangle', 'star', 'ellipse'];
+    this.shape = shapes[Math.floor(Math.random() * shapes.length)];
+    // 各形状の固有パラメータ
+    this.rotAngle = Math.random() * Math.PI * 2;
+    this.aspectRatio = 0.55 + Math.random() * 0.35; // 0.55 〜 0.90 の楕円比率
+    
     this.reset();
   }
 
@@ -1540,10 +1548,9 @@ function initGame() {
   /* 結晶核を配置 */
   const margin = Math.min(W, H) * 0.2;
   for (let i = 0; i < NUCLEUS_COUNT; i++) {
-    const angle = (Math.PI * 2 / NUCLEUS_COUNT) * i + Math.PI / 5;
-    const dist  = Math.min(W, H) * 0.28;
-    const nx    = W / 2 + Math.cos(angle) * dist * (0.65 + Math.random() * 0.45);
-    const ny    = H / 2 + Math.sin(angle) * dist * (0.65 + Math.random() * 0.45);
+    // 中心からの距離制限を廃止し、画面全体に不定でランダム散布させる
+    const nx = margin + Math.random() * (W - margin * 2);
+    const ny = margin + Math.random() * (H - margin * 2);
     const freq  = SKINS[STATE.skinId].soundFreq * (1 + i * 0.25);
     crystalNuclei.push(new CrystalNucleus(
       Math.max(margin, Math.min(W - margin, nx)),
@@ -1887,18 +1894,59 @@ function drawNuclei(t, skin) {
     ctx2d.shadowColor = skin.glow;
     ctx2d.strokeStyle = skin.glow;
 
+    const rInner = CRYSTAL_RADIUS * (0.68 + pulse * 0.32);
+    const rOuter = CRYSTAL_RADIUS * 2.2 + pulse * 12;
+
+    /* 形状に応じたパス作成関数 */
+    const drawShapePath = (ctx, x, y, r, shape, rot, aspect) => {
+      ctx.beginPath();
+      if (shape === 'circle') {
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+      } else if (shape === 'rect') {
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.rect(-r, -r, r * 2, r * 2);
+      } else if (shape === 'triangle') {
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.moveTo(0, -r * 1.1);
+        ctx.lineTo(r * 1.0, r * 0.7);
+        ctx.lineTo(-r * 1.0, r * 0.7);
+        ctx.closePath();
+      } else if (shape === 'star') {
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        const points = 5;
+        const outerRad = r * 1.25;
+        const innerRad = r * 0.55;
+        for (let i = 0; i < points * 2; i++) {
+          const angle = (i * Math.PI) / points;
+          const currRad = i % 2 === 0 ? outerRad : innerRad;
+          ctx.lineTo(Math.cos(angle) * currRad, Math.sin(angle) * currRad);
+        }
+        ctx.closePath();
+      } else if (shape === 'ellipse') {
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.ellipse(0, 0, r * 1.2, r * 1.2 * aspect, 0, 0, Math.PI * 2);
+      }
+    };
+
     /* 内リング */
     ctx2d.globalAlpha = baseAlpha * 0.8;
     ctx2d.lineWidth   = nucleiEnabled ? 1.4 : 0.8;
-    ctx2d.beginPath();
-    ctx2d.arc(nucleus.x, nucleus.y, CRYSTAL_RADIUS * (0.68 + pulse * 0.32), 0, Math.PI * 2);
+    ctx2d.save();
+    drawShapePath(ctx2d, nucleus.x, nucleus.y, rInner, nucleus.shape, nucleus.rotAngle, nucleus.aspectRatio);
     ctx2d.stroke();
+    ctx2d.restore();
 
     /* 外リング */
     ctx2d.globalAlpha = baseAlpha * 0.2;
-    ctx2d.beginPath();
-    ctx2d.arc(nucleus.x, nucleus.y, CRYSTAL_RADIUS * 2.2 + pulse * 12, 0, Math.PI * 2);
+    ctx2d.lineWidth   = 0.8;
+    ctx2d.save();
+    drawShapePath(ctx2d, nucleus.x, nucleus.y, rOuter, nucleus.shape, nucleus.rotAngle, nucleus.aspectRatio);
     ctx2d.stroke();
+    ctx2d.restore();
 
     /* 中心点 */
     ctx2d.globalAlpha = nucleiEnabled ? 0.75 : 0.25;
