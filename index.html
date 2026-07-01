@@ -345,54 +345,53 @@
       pointer-events: none;
     }
     .start-title {
-      font-size: 2.8rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(24px, 5.5vw, 36px);
+      font-weight: 200;
+      letter-spacing: 0.38em;
+      color: #ffffff;
       margin-bottom: 32px;
       user-select: none;
       -webkit-user-select: none;
       display: flex;
-      gap: 12px;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      filter: drop-shadow(0 0 15px rgba(0, 245, 255, 0.45));
+      gap: 12px;
     }
-    .logo-spacey {
-      font-family: 'Syncopate', sans-serif;
-      font-weight: 700;
-      letter-spacing: 14px;
-      background: linear-gradient(90deg, #00f5ff, #bd00ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: spaceyShift 6s ease-in-out infinite alternate;
+    .logo-main {
+      text-transform: uppercase;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.4), 0 0 30px rgba(0, 245, 255, 0.2);
+      animation: logoFade 4s ease-in-out infinite alternate;
+      text-indent: 0.38em; /* 右側の余白偏りを補正 */
     }
-    .logo-bloom {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 200;
-      letter-spacing: 10px;
-      color: #ffffff;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 25px rgba(189, 0, 255, 0.5);
-      animation: bloomPulse 3s ease-in-out infinite alternate;
-      margin-left: 6px;
+    .logo-line {
+      width: 48px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.8), rgba(189, 0, 255, 0.8), transparent);
+      opacity: 0.85;
+      box-shadow: 0 0 8px rgba(0, 245, 255, 0.4);
     }
     .start-sub {
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       font-weight: 300;
-      letter-spacing: 3px;
-      color: rgba(255, 255, 255, 0.65);
-      border: 1px solid rgba(0, 245, 255, 0.25);
-      padding: 10px 24px;
+      letter-spacing: 0.25em;
+      color: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 10px 28px;
       border-radius: 30px;
-      background: rgba(0, 245, 255, 0.05);
-      box-shadow: 0 0 15px rgba(0, 245, 255, 0.1);
+      background: rgba(255, 255, 255, 0.02);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       user-select: none;
       -webkit-user-select: none;
+      transition: all 0.3s ease;
+      text-indent: 0.25em;
     }
-    @keyframes spaceyShift {
-      0% { filter: hue-rotate(0deg); letter-spacing: 12px; }
-      100% { filter: hue-rotate(45deg); letter-spacing: 16px; }
-    }
-    @keyframes bloomPulse {
-      0% { opacity: 0.8; filter: blur(0.5px); text-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 15px rgba(189, 0, 255, 0.3); }
-      100% { opacity: 1.0; filter: blur(0px); text-shadow: 0 0 16px rgba(255, 255, 255, 1), 0 0 35px rgba(189, 0, 255, 0.8); }
+    @keyframes logoFade {
+      0% { opacity: 0.75; filter: blur(0.5px) brightness(0.9); }
+      100% { opacity: 1.0; filter: blur(0px) brightness(1.1); }
     }
   </style>
 </head>
@@ -400,7 +399,7 @@
 
 <!-- スタートオーバーレイ -->
 <div id="startOverlay" role="dialog" aria-label="ゲームスタート">
-  <h1 class="start-title"><span class="logo-spacey">SPACEY</span><span class="logo-bloom">BLOOM</span></h1>
+  <h1 class="start-title"><span class="logo-main">SPACEY BLOOM</span><span class="logo-line"></span></h1>
   <div class="start-sub">タップして開始</div>
 </div>
 
@@ -464,7 +463,7 @@
 
 <!-- クリアオーバーレイ -->
 <div id="clearOverlay" role="status" aria-live="polite">
-  <div class="clear-text"><span class="logo-spacey">SPACEY</span><span class="logo-bloom">BLOOM</span></div>
+  <div class="clear-text"><span class="logo-main">SPACEY BLOOM</span><span class="logo-line"></span></div>
   <div class="clear-sub">脳が解放される</div>
   <button class="clear-restart" id="clearRestart" aria-label="もう一度プレイする">もう一度</button>
 </div>
