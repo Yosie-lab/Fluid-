@@ -1547,16 +1547,27 @@ function initGame() {
 
   /* 結晶核を配置 */
   const margin = Math.min(W, H) * 0.2;
+  const minDist = CRYSTAL_RADIUS * 6.0; // 結晶核同士の最小安全距離（約156px）
   for (let i = 0; i < NUCLEUS_COUNT; i++) {
-    // 中心からの距離制限を廃止し、画面全体に不定でランダム散布させる
-    const nx = margin + Math.random() * (W - margin * 2);
-    const ny = margin + Math.random() * (H - margin * 2);
+    let nx, ny;
+    let attempts = 0;
+    while (attempts < 50) {
+      nx = margin + Math.random() * (W - margin * 2);
+      ny = margin + Math.random() * (H - margin * 2);
+      nx = Math.max(margin, Math.min(W - margin, nx));
+      ny = Math.max(margin, Math.min(H - margin, ny));
+
+      // 既存の核との最小距離チェック
+      const tooClose = crystalNuclei.some(n => {
+        const d2 = (nx - n.x) ** 2 + (ny - n.y) ** 2;
+        return d2 < minDist * minDist;
+      });
+
+      if (!tooClose) break;
+      attempts++;
+    }
     const freq  = SKINS[STATE.skinId].soundFreq * (1 + i * 0.25);
-    crystalNuclei.push(new CrystalNucleus(
-      Math.max(margin, Math.min(W - margin, nx)),
-      Math.max(margin, Math.min(H - margin, ny)),
-      freq
-    ));
+    crystalNuclei.push(new CrystalNucleus(nx, ny, freq));
   }
 
   /* パーティクル配置（安全距離確保） */
