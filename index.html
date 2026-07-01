@@ -427,14 +427,7 @@
       0% { opacity: 0.75; filter: blur(0.5px) brightness(0.9); }
       100% { opacity: 1.0; filter: blur(0px) brightness(1.1); }
     }
-    @keyframes spaceyShift {
-      0% { filter: hue-rotate(0deg); letter-spacing: 9px; }
-      100% { filter: hue-rotate(45deg); letter-spacing: 11px; }
-    }
-    @keyframes bloomPulse {
-      0% { opacity: 0.8; filter: blur(0.5px); text-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 15px rgba(189, 0, 255, 0.3); }
-      100% { opacity: 1.0; filter: blur(0px); text-shadow: 0 0 16px rgba(255, 255, 255, 1), 0 0 35px rgba(189, 0, 255, 0.8); }
-    }
+
   </style>
 </head>
 <body>
@@ -2117,30 +2110,30 @@ function updateParticles(t, skin) {
     /* 描画 */
     const ratio = Math.min(speed / 5.0, 1);
     
-    ctx2d.save();
     // 個別のグラデーション（createRadialGradient）を廃止し、単色のアルファ半透明で超高速描画（カクつきを根本から解消）
     // 速度（ratio）に応じて少し明るく、かつ尾を引くような流動感を表現
     ctx2d.fillStyle = hexAlpha(skin.fluidA, p.alpha * (0.42 + ratio * 0.15));
     ctx2d.beginPath();
     ctx2d.arc(p.x, p.y, p.r * 0.72 * (1 + ratio * 0.25), 0, Math.PI * 2);
     ctx2d.fill();
-    ctx2d.restore();
   });
   
   // 吸収されて消滅した不要な粒子を配列から完全にパージ（除去）し、走査負荷をゼロにする
   particles = particles.filter(p => !p.frozen);
 
   // エネルギー粒子が足りなくならないよう、減った分の粒子をリスポーン（再生成）
+  const safeZoneSqr = NUCLEUS_SAFE_ZONE * NUCLEUS_SAFE_ZONE;
   while (particles.length < MAX_PARTICLES) {
-    let px, py;
-    for (let attempt = 0; attempt < 12; attempt++) {
-      px = Math.random() * W;
-      py = Math.random() * H;
+    let px = Math.random() * W;
+    let py = Math.random() * H;
+    for (let attempt = 0; attempt < 4; attempt++) {
       const safe = crystalNuclei.every(n => {
-        const d2 = (px - n.x) ** 2 + (py - n.y) ** 2;
-        return d2 >= NUCLEUS_SAFE_ZONE * NUCLEUS_SAFE_ZONE;
+        const dx = px - n.x, dy = py - n.y;
+        return (dx * dx + dy * dy) >= safeZoneSqr;
       });
       if (safe) break;
+      px = Math.random() * W;
+      py = Math.random() * H;
     }
     const p = new Particle(px, py);
     p.fadeInSpeed = 0.015; // 徐々にフェードインして出現させる
