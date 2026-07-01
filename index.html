@@ -1298,6 +1298,10 @@ class CrystalNucleus {
     this.rotAngle = Math.random() * Math.PI * 2;
     this.aspectRatio = 0.55 + Math.random() * 0.35; // 0.55 〜 0.90 の楕円比率
     
+    // アート性の高い不定形成長のための異方性パラメータ
+    this.growthBiasAngle = Math.random() * Math.PI * 2;  // 成長が優先されるバイアス角度
+    this.growthAsymmetry = 0.25 + Math.random() * 0.45;  // 異方性の強度（低いほど一方向に細長く有機的な形状になる）
+    
     this.reset();
   }
 
@@ -1399,13 +1403,23 @@ class CrystalNucleus {
 
   /* 流体が吸い込まれた位置の周辺に、ランダムに結晶を繋げていく動的成長アルゴリズム */
   _growUnpredictable(pX, pY, combo) {
-    // 既存のセルの中から、吸い込まれた位置に最も近い「親セル」を探索
+    // 既存のセルの中から、吸い込まれた位置に最も近い「親セル」を探索（異方性を導入）
     let bestParent = this.cells[0];
     let minDist2 = Infinity;
     
+    const cosB = Math.cos(this.growthBiasAngle);
+    const sinB = Math.sin(this.growthBiasAngle);
+    
     this.cells.forEach(cell => {
       const dx = pX - cell.x, dy = pY - cell.y;
-      const d2 = dx * dx + dy * dy;
+      
+      // 成長バイアス角度のローカル座標系に変換
+      const localX = dx * cosB + dy * sinB;
+      const localY = -dx * sinB + dy * cosB;
+      
+      // 軸方向の距離を異方性で歪めることで、特定の結晶主軸に沿って枝が伸びやすくする
+      const d2 = (localX * this.growthAsymmetry) ** 2 + localY ** 2;
+      
       if (d2 < minDist2) {
         minDist2 = d2;
         bestParent = cell;
