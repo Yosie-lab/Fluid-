@@ -847,12 +847,12 @@ function playCarbonatedSound() {
     noise.stop(now + duration);
   };
 
-  // 左右に極限まで広げ、高音から温かい低音へスイープダウンさせる3系統ノイズ（さらにもう少し小さく: 0.35->0.22, 0.18->0.10）
-  playStereoNoise(-0.9, 10000, 1200, 0.22); // 左
-  playStereoNoise(0.9, 8500, 1000, 0.22);   // 右
-  playStereoNoise(0.0, 5000, 600, 0.10);    // 中央
+  // 左右に極限まで広げ、高音から温かい低音へスイープダウンさせる3系統ノイズ（さらにもう少し小さく: 0.22->0.08, 0.10->0.04）
+  playStereoNoise(-0.9, 10000, 1200, 0.08); // 左
+  playStereoNoise(0.9, 8500, 1000, 0.08);   // 右
+  playStereoNoise(0.0, 5000, 600, 0.04);    // 中央
 
-  // 2. 「パチパチ」弾ける無数の泡を 180 個（さらにもう少し小さく: 0.05~0.10 -> 0.03~0.06 に調整）
+  // 2. 「パチパチ」弾ける無数の泡を 180 個（さらにもう少し小さく: 0.03~0.06 -> 0.015~0.035 に調整）
   for (let i = 0; i < 180; i++) {
     const delay = Math.random() * 5.1; // 5.1秒の間に分散（消える直前まで配置）
     const time = now + delay;
@@ -868,8 +868,8 @@ function playCarbonatedSound() {
     bubbleOsc.frequency.setValueAtTime(startFreq, time);
     bubbleOsc.frequency.exponentialRampToValueAtTime(startFreq * 0.25, time + 0.004);
     
-    // 【調整】さらにもう少しだけ小さく（0.03 〜 0.06 レンジに調整）
-    const peakVol = 0.03 + Math.random() * 0.03;
+    // 【調整】うるささを完全に抑え、「気持ちいい〜」と感じる極小音量（0.015 〜 0.035）に微調整
+    const peakVol = 0.015 + Math.random() * 0.02;
     
     // ドライ音
     dryGain.gain.setValueAtTime(0, time);
