@@ -569,8 +569,13 @@ function createReverbBuffer(ctx, duration, decay) {
   const buf = ctx.createBuffer(2, len, sampleRate);
   for (let c = 0; c < 2; c++) {
     const data = buf.getChannelData(c);
+    let lastVal = 0;
     for (let i = 0; i < len; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      const white = Math.random() * 2 - 1;
+      // 【改善】金属的なキーンという共鳴（ハウリング感）を防ぐため、1次ローパスで高域を滑らかにカット
+      const lpVal = lastVal * 0.88 + white * 0.12;
+      lastVal = lpVal;
+      data[i] = lpVal * Math.pow(1 - i / len, decay);
     }
   }
   return buf;
