@@ -1552,6 +1552,159 @@ class CrystalNucleus {
    カウントダウンリングUI
 ============================================================ */
 let svgProgressEl = null;
+// 『脳リフレクソ』風の背景流れ星と波紋システム
+let bgMeteors = [];
+let bgRipples = [];
+let lastShootingStarTime = Date.now();
+let nextShootingStarDelay = 10000 + Math.random() * 20000; // 10秒〜30秒のランダム
+
+// 自然な背景流れ星の生成
+function spawnBackgroundShootingStar() {
+  const startFromLeft = Math.random() < 0.5;
+  let startX, startY;
+  
+  if (startFromLeft) {
+    startX = -100;
+    startY = Math.random() * H * 0.45;
+  } else {
+    startX = Math.random() * W * 0.55;
+    startY = -100;
+  }
+  
+  const angle = (18 + Math.random() * 22) * Math.PI / 180;
+  const speed = 14 + Math.random() * 6; // 14〜20px/フレーム
+  
+  bgMeteors.push({
+    x: startX,
+    y: startY,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    speed: speed,
+    angle: angle,
+    length: 120 + Math.random() * 80,
+    width: 1.0 + Math.random() * 0.8,
+    alpha: 0,
+    fadeSpeed: 0.18,
+    targetAlpha: 0.52 + Math.random() * 0.22,
+    maxLife: 20 + Math.random() * 15,
+    life: 0
+  });
+}
+
+// 自然な背景波紋の生成
+function createBackgroundRipple(x, y, maxR, speed, hue) {
+  bgRipples.push({
+    x: x,
+    y: y,
+    r: 0,
+    maxR: maxR || (90 + Math.random() * 70),
+    speed: speed || (1.5 + Math.random() * 0.8),
+    alpha: 0.8,
+    hue: hue || (185 + Math.random() * 25)
+  });
+}
+
+// 流れ星と波紋の更新
+function updateBgEffects() {
+  const now = Date.now();
+  if (now - lastShootingStarTime >= nextShootingStarDelay) {
+    spawnBackgroundShootingStar();
+    lastShootingStarTime = now;
+    nextShootingStarDelay = 10000 + Math.random() * 30000; // 次回は10秒〜40秒
+  }
+
+  // 自動波紋生成
+  if (Math.random() < 0.008) {
+    const rx = Math.random() * W;
+    const ry = Math.random() * H;
+    createBackgroundRipple(rx, ry);
+  }
+
+  // 流れ星の更新
+  for (let i = bgMeteors.length - 1; i >= 0; i--) {
+    const m = bgMeteors[i];
+    m.x += m.vx;
+    m.y += m.vy;
+    m.life++;
+
+    if (m.life > m.maxLife * 0.6) {
+      m.alpha = m.targetAlpha * (1 - (m.life - m.maxLife * 0.6) / (m.maxLife * 0.4));
+    } else if (m.alpha < m.targetAlpha) {
+      m.alpha = Math.min(m.targetAlpha, m.alpha + m.fadeSpeed);
+    }
+
+    if (m.life >= m.maxLife || m.x < -m.length || m.x > W + m.length || m.y < -m.length || m.y > H + m.length) {
+      bgMeteors.splice(i, 1);
+    }
+  }
+
+  // 波紋の更新
+  for (let i = bgRipples.length - 1; i >= 0; i--) {
+    const r = bgRipples[i];
+    r.r += r.speed;
+    r.alpha = 0.8 * (1.0 - (r.r / r.maxR));
+    if (r.r >= r.maxR || r.alpha <= 0) {
+      bgRipples.splice(i, 1);
+    }
+  }
+}
+
+// 流れ星と波紋の描画
+function drawBgEffects() {
+  // 波紋の描画
+  bgRipples.forEach(r => {
+    const color = `hsla(${r.hue}, 70%, 75%, ${r.alpha * 0.55})`;
+    ctx2d.strokeStyle = color;
+    ctx2d.lineWidth = 3.2;
+    ctx2d.beginPath();
+    ctx2d.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx2d.stroke();
+
+    // 擬似グロー効果
+    ctx2d.strokeStyle = `hsla(${r.hue}, 70%, 75%, ${r.alpha * 0.15})`;
+    ctx2d.lineWidth = 6.4;
+    ctx2d.beginPath();
+    ctx2d.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx2d.stroke();
+  });
+
+  // 流れ星の描画
+  bgMeteors.forEach(m => {
+    const tailX = m.x - m.vx * (m.length / m.speed);
+    const tailY = m.y - m.vy * (m.length / m.speed);
+
+    const grad = ctx2d.createLinearGradient(m.x, m.y, tailX, tailY);
+    grad.addColorStop(0, `rgba(255, 255, 255, ${m.alpha})`);
+    grad.addColorStop(0.3, `rgba(242, 246, 255, ${m.alpha * 0.85})`);
+    grad.addColorStop(1, `rgba(255, 255, 255, 0)`);
+
+    const glowGrad = ctx2d.createLinearGradient(m.x, m.y, tailX, tailY);
+    glowGrad.addColorStop(0, `rgba(255, 255, 255, ${m.alpha * 0.22})`);
+    glowGrad.addColorStop(0.5, `rgba(240, 245, 255, 0)`);
+
+    ctx2d.save();
+    ctx2d.lineCap = 'round';
+
+    // グロー線
+    ctx2d.strokeStyle = glowGrad;
+    ctx2d.lineWidth = m.width * 1.5;
+    ctx2d.beginPath();
+    ctx2d.moveTo(m.x, m.y);
+    ctx2d.lineTo(tailX, tailY);
+    ctx2d.stroke();
+
+    // 実線
+    ctx2d.strokeStyle = grad;
+    ctx2d.lineWidth = m.width;
+    ctx2d.beginPath();
+    ctx2d.moveTo(m.x, m.y);
+    ctx2d.lineTo(tailX, tailY);
+    ctx2d.stroke();
+
+    ctx2d.restore();
+  });
+}
+
 const RING_R = 52;
 const RING_C = 2 * Math.PI * RING_R;
 
@@ -1693,6 +1846,8 @@ function gameLoop() {
 
   /* 『脳リフレクソ』移植のまたたく星空背景 */
   drawStars();
+  updateBgEffects();
+  drawBgEffects();
 
   const t = frameCount * 0.016;
 
