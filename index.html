@@ -1545,27 +1545,27 @@ function initGame() {
   frameCount     = 0;
   STATE.phase    = 'flow';
 
-  /* 結晶核を配置 */
+  /* 結晶核を配置（黄金螺旋ベースの美的アシンメトリー配置） */
   const margin = Math.min(W, H) * 0.2;
-  const minDist = CRYSTAL_RADIUS * 6.0; // 結晶核同士の最小安全距離（約156px）
+  const centerX = W / 2;
+  const centerY = H / 2;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // 約137.5度（黄金角）
+  const baseAngle = Math.random() * Math.PI * 2;   // 開始角度をゲーム毎にランダム化
+
   for (let i = 0; i < NUCLEUS_COUNT; i++) {
-    let nx, ny;
-    let attempts = 0;
-    while (attempts < 50) {
-      nx = margin + Math.random() * (W - margin * 2);
-      ny = margin + Math.random() * (H - margin * 2);
-      nx = Math.max(margin, Math.min(W - margin, nx));
-      ny = Math.max(margin, Math.min(H - margin, ny));
+    // 黄金角に基づき、螺旋状に展開させることで、重ならずかつ美しい非対称の構図を作る
+    const angle = baseAngle + i * goldenAngle + (Math.random() - 0.5) * 0.25; // わずかなゆらぎ
+    // 中心からの距離。iに応じて徐々に外側に広げる（重なりを美しく避ける）
+    const distRange = Math.min(W, H) * 0.28;
+    const dist = Math.min(W, H) * 0.12 + (i / NUCLEUS_COUNT) * distRange + Math.random() * 40;
 
-      // 既存の核との最小距離チェック
-      const tooClose = crystalNuclei.some(n => {
-        const d2 = (nx - n.x) ** 2 + (ny - n.y) ** 2;
-        return d2 < minDist * minDist;
-      });
+    let nx = centerX + Math.cos(angle) * dist;
+    let ny = centerY + Math.sin(angle) * dist;
 
-      if (!tooClose) break;
-      attempts++;
-    }
+    // 画面外にはみ出さないようにマージン内にクリップ
+    nx = Math.max(margin, Math.min(W - margin, nx));
+    ny = Math.max(margin, Math.min(H - margin, ny));
+
     const freq  = SKINS[STATE.skinId].soundFreq * (1 + i * 0.25);
     crystalNuclei.push(new CrystalNucleus(nx, ny, freq));
   }
