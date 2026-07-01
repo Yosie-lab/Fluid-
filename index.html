@@ -910,135 +910,157 @@ function playClearChord() {
 }
 
 /* クリア時の炭酸音（さらに小さく調整、かつリバーブ対応） */
-function playCarbonatedSound() {
+function playCarbonatedSound(originX) {
   if (!STATE.soundEnabled) return;
   const ctx = getAudioCtx();
-  if (!ctx || ctx.state !== 'running') return;
+  if (!ctx) return;
 
-  const now = ctx.currentTime;
-  const sampleRate = ctx.sampleRate;
-  const duration = 5.5; // 心地よい余韻のために5.5秒に延長
-  const bufferSize = sampleRate * duration;
-  const reverb = getReverbNode(ctx);
-
-  // 左右で干渉しない完全独立のステレオノイズバッファ作成関数
-  const makeNoiseBuffer = () => {
-    const buf = ctx.createBuffer(1, bufferSize, sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    return buf;
-  };
-
-  // ステレオパン付きノイズ再生ヘルパー（ローパススイープダウン仕様、音量微小化）
-  const playStereoNoise = (panValue, startFreq, endFreq, maxVolume) => {
-    const noise = ctx.createBufferSource();
-    noise.buffer = makeNoiseBuffer();
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass'; // 温かみのある減衰のためにローパスを使用
-    filter.Q.value = 1.0;
-    filter.frequency.setValueAtTime(startFreq, now);
-    filter.frequency.exponentialRampToValueAtTime(endFreq, now + duration - 0.5);
-
-    const dryGain = ctx.createGain();
-    dryGain.gain.setValueAtTime(0.001, now);
-    dryGain.gain.linearRampToValueAtTime(maxVolume, now + 0.12); // スムーズな立ち上がり
-    dryGain.gain.linearRampToValueAtTime(0.001, now + duration); // 直線的なフェードアウトで最後まで包み込む
-
-    // ノイズ用リバーブウェット（比率を引き上げて「ショワーン」という包み込み音にする）
-    const wetGain = ctx.createGain();
-    wetGain.gain.setValueAtTime(0.001, now);
-    wetGain.gain.linearRampToValueAtTime(maxVolume * 0.48, now + 0.12); // ノイズの残響比率を引き上げ
-    wetGain.gain.linearRampToValueAtTime(0.001, now + duration);
-
-    if (ctx.createStereoPanner) {
-      const panner = ctx.createStereoPanner();
-      panner.pan.setValueAtTime(panValue, now);
-      noise.connect(filter);
-      filter.connect(dryGain);
-      dryGain.connect(panner);
-      panner.connect(ctx.destination);
-
-      // ウェット（リバーブ）接続
-      const wetFilter = ctx.createBiquadFilter();
-      wetFilter.type = 'lowpass';
-      wetFilter.Q.value = 1.0;
-      wetFilter.frequency.setValueAtTime(startFreq, now);
-      wetFilter.frequency.exponentialRampToValueAtTime(endFreq, now + duration - 0.5);
-      noise.connect(wetFilter);
-      wetFilter.connect(wetGain);
-      wetGain.connect(reverb);
-    } else {
-      noise.connect(filter);
-      filter.connect(dryGain);
-      dryGain.connect(ctx.destination);
-
-      noise.connect(filter);
-      filter.connect(wetGain);
-      wetGain.connect(reverb);
-    }
-    noise.start(now);
-    noise.stop(now + duration);
-  };
-
-  // 炭酸ノイズの音量を少し下げる
-  playStereoNoise(-0.9, 10000, 1200, 0.08); // 左
-  playStereoNoise(0.9, 8500, 1000, 0.08);   // 右
-  playStereoNoise(0.0, 5000, 600, 0.04);    // 中央
-
-  // 2. 「パチパチ」弾ける無数の泡を 180 個（音量をほんの少し戻す: 0.015~0.035 -> 0.025~0.06 に調整）
-  for (let i = 0; i < 180; i++) {
-    const delay = Math.random() * 5.1; // 5.1秒の間に分散（消える直前まで配置）
-    const time = now + delay;
-    
-    const bubbleOsc = ctx.createOscillator();
-    const dryGain = ctx.createGain();
-    const wetGain = ctx.createGain();
-    
-    const startFreq = 4500 + Math.random() * 6500; // 4500Hz 〜 11000Hzの超高音域
-    bubbleOsc.type = 'sine';
-    
-    // 4msの高速ピッチスイープで「パチッ」というリアルな破裂衝撃音を作る
-    bubbleOsc.frequency.setValueAtTime(startFreq, time);
-    bubbleOsc.frequency.exponentialRampToValueAtTime(startFreq * 0.25, time + 0.004);
-    
-    // 炭酸泡の音量を下げつつ、リバーブ残響（ウェット）比率を引き上げて響きを豊かにする
-    const peakVol = 0.014 + Math.random() * 0.018;
-    
-    // ドライ音
-    dryGain.gain.setValueAtTime(0, time);
-    dryGain.gain.linearRampToValueAtTime(peakVol, time + 0.001);
-    const decay = 0.015 + Math.random() * 0.025;
-    dryGain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
-    
-    // ウェット（リバーブ）音（比率を0.55へアップし、ショワーンバチバチとする心地よい残響に）
-    wetGain.gain.setValueAtTime(0, time);
-    wetGain.gain.linearRampToValueAtTime(peakVol * 0.55, time + 0.001); // 泡音の深い響き
-    wetGain.gain.exponentialRampToValueAtTime(0.0001, time + decay + 0.05); // 残響用のトリガー
-    
-    // 左右パン極限（真左・真右）のASMRステレオ配置
-    if (ctx.createStereoPanner) {
-      const panner = ctx.createStereoPanner();
-      const pan = (Math.random() * 2 - 1) * 0.96;
-      panner.pan.setValueAtTime(pan, time);
-      
-      bubbleOsc.connect(dryGain);
-      dryGain.connect(panner);
-      panner.connect(ctx.destination);
-    } else {
-      bubbleOsc.connect(dryGain);
-      dryGain.connect(ctx.destination);
-    }
-
-    // ウェット音を共通リバーブノードに接続
-    bubbleOsc.connect(wetGain);
-    wetGain.connect(reverb);
-    
-    bubbleOsc.start(time);
-    bubbleOsc.stop(time + 0.08);
+  if (ctx.state !== 'running') {
+    ctx.resume().then(() => {
+      playCarbonatedSound(originX);
+    }).catch(() => {});
+    return;
   }
+
+  // キャッシュが生成されていなければ生成する
+  if (!carbonatedBufferCache) {
+    pregenerateCarbonatedBuffer();
+  }
+  if (!carbonatedBufferCache) return;
+
+  try {
+    const now = ctx.currentTime;
+    const durationSeconds = 6.5;
+
+    // 発生元のX座標から基準定位（パン）を計算（指定がない場合は中央）
+    const basePan = (originX !== undefined) 
+      ? Math.max(-1.0, Math.min(1.0, (originX / W) * 2 - 1)) 
+      : 0;
+
+    // AudioBufferSourceNode の作成と再生
+    const noiseNode = ctx.createBufferSource();
+    noiseNode.buffer = carbonatedBufferCache;
+
+    let basePanner = null;
+    try {
+      if (ctx.createStereoPanner) {
+        basePanner = ctx.createStereoPanner();
+        basePanner.pan.setValueAtTime(basePan, now);
+      }
+    } catch (e) {}
+
+    // ハイパスフィルターで高音のシュワシュワ成分のみを取り出す（一括適用）
+    const filterNode = ctx.createBiquadFilter();
+    filterNode.type = 'highpass';
+    filterNode.frequency.setValueAtTime(4200, now);
+    filterNode.frequency.exponentialRampToValueAtTime(2200, now + durationSeconds - 0.5);
+
+    // ディレイ空間エコー回路
+    const delayNodeL = ctx.createDelay(1.5);
+    const delayNodeR = ctx.createDelay(1.5);
+
+    const delayFeedbackL = ctx.createGain();
+    const delayFeedbackR = ctx.createGain();
+    
+    delayNodeL.delayTime.setValueAtTime(0.16, now); 
+    delayNodeR.delayTime.setValueAtTime(0.26, now); 
+    
+    delayFeedbackL.gain.setValueAtTime(0.42, now); 
+    delayFeedbackR.gain.setValueAtTime(0.42, now);
+
+    const delayFilterL = ctx.createBiquadFilter();
+    const delayFilterR = ctx.createBiquadFilter();
+    delayFilterL.type = 'bandpass';
+    delayFilterL.frequency.setValueAtTime(3600, now);
+    delayFilterL.Q.setValueAtTime(0.8, now); 
+    
+    delayFilterR.type = 'bandpass';
+    delayFilterR.frequency.setValueAtTime(4200, now);
+    delayFilterR.Q.setValueAtTime(0.8, now);
+
+    let delayPannerL = null;
+    let delayPannerR = null;
+    try {
+      if (ctx.createStereoPanner) {
+        delayPannerL = ctx.createStereoPanner();
+        delayPannerR = ctx.createStereoPanner();
+        delayPannerL.pan.setValueAtTime(-0.9, now); 
+        delayPannerR.pan.setValueAtTime(0.9, now);
+      }
+    } catch (e) {}
+
+    // 接続
+    if (basePanner) {
+      noiseNode.connect(basePanner);
+      basePanner.connect(filterNode);
+    } else {
+      noiseNode.connect(filterNode);
+    }
+    
+    // ディレイへの接続（センド）
+    filterNode.connect(delayNodeL);
+    filterNode.connect(delayNodeR);
+
+    delayNodeL.connect(delayFilterL);
+    delayFilterL.connect(delayFeedbackL);
+    delayFeedbackL.connect(delayNodeL);
+    
+    delayNodeR.connect(delayFilterR);
+    delayFilterR.connect(delayFeedbackR);
+    delayFeedbackR.connect(delayNodeR);
+
+    // クロスフィードバック
+    const delayCrossL = ctx.createGain();
+    const delayCrossR = ctx.createGain();
+    delayCrossL.gain.setValueAtTime(0.18, now); 
+    delayCrossR.gain.setValueAtTime(0.18, now);
+    delayFilterL.connect(delayCrossL);
+    delayCrossL.connect(delayNodeR);
+    delayFilterR.connect(delayCrossR);
+    delayCrossR.connect(delayNodeL);
+
+    // 出力ゲイン（最終音量微調整用 — 適度に包み込む音量）
+    const outputGain = ctx.createGain();
+    outputGain.gain.setValueAtTime(1.0, now);
+    outputGain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
+
+    filterNode.connect(outputGain);
+    outputGain.connect(ctx.destination);
+
+    if (delayPannerL && delayPannerR) {
+      delayFilterL.connect(delayPannerL);
+      delayPannerL.connect(ctx.destination);
+      delayFilterR.connect(delayPannerR);
+      delayPannerR.connect(ctx.destination);
+    } else {
+      delayFilterL.connect(ctx.destination);
+      delayFilterR.connect(ctx.destination);
+    }
+
+    noiseNode.start(now);
+    noiseNode.stop(now + durationSeconds + 0.1);
+
+    // クリーンアップ
+    setTimeout(() => {
+      try {
+        noiseNode.disconnect();
+        if (basePanner) basePanner.disconnect();
+        filterNode.disconnect();
+        outputGain.disconnect();
+        delayNodeL.disconnect();
+        delayNodeR.disconnect();
+        delayFeedbackL.disconnect();
+        delayFeedbackR.disconnect();
+        delayCrossL.disconnect();
+        delayCrossR.disconnect();
+        if (delayPannerL) delayPannerL.disconnect();
+        if (delayPannerR) delayPannerR.disconnect();
+      } catch (e) {}
+    }, 8000);
+  } catch (e) {
+    console.warn("炭酸音再生エラー:", e);
+  }
+}
 }
 
 /* ============================================================
@@ -1540,6 +1562,96 @@ class CrystalNucleus {
    カウントダウンリングUI
 ============================================================ */
 let svgProgressEl = null;
+let carbonatedBufferCache = null;
+
+// 脳リフレクソから移植した炭酸音バッファの事前生成
+function pregenerateCarbonatedBuffer() {
+  const ctx = getAudioCtx();
+  if (carbonatedBufferCache || !ctx) return;
+  
+  try {
+    const durationSeconds = 6.5;
+    const sampleRate = ctx.sampleRate;
+    const bufferSize = sampleRate * durationSeconds;
+    
+    const audioBuffer = ctx.createBuffer(2, bufferSize, sampleRate);
+    const leftData = audioBuffer.getChannelData(0);
+    const rightData = audioBuffer.getChannelData(1);
+    
+    // 1. ベースノイズの合成
+    for (let i = 0; i < bufferSize; i++) {
+      const time = i / sampleRate;
+      const amp = Math.min(1.0, time / 0.15) * Math.exp(-time / 2.0) * 0.032;
+      const noise = Math.random() * 2 - 1;
+      leftData[i] = noise * amp;
+      rightData[i] = noise * amp;
+    }
+    
+    // 2. パチパチ音（400個）を一括加算
+    const bubbleCount = 400;
+    const clickDuration = durationSeconds - 0.2;
+    
+    for (let i = 0; i < bubbleCount; i++) {
+      let timeOffset;
+      if (i < 320) {
+        timeOffset = Math.pow(Math.random(), 1.4) * 4.0;
+      } else {
+        timeOffset = 4.0 + Math.random() * (clickDuration - 4.0);
+      }
+      
+      const isNoise = Math.random() < 0.35;
+      const clickLen = isNoise 
+        ? (0.003 + Math.random() * 0.006) 
+        : (0.004 + Math.random() * 0.012);
+
+      const startSample = Math.floor(timeOffset * sampleRate);
+      const lengthSamples = Math.floor(clickLen * sampleRate);
+
+      let volumeMultiplier = 1.0;
+      if (timeOffset <= 4.0) {
+        volumeMultiplier = 1.7 - (timeOffset / 4.0) * 0.5;
+      } else {
+        const postRatio = (timeOffset - 4.0) / (clickDuration - 4.0);
+        volumeMultiplier = Math.max(0.12, 1.0 - postRatio * 0.88);
+      }
+
+      const maxVolume = (isNoise
+        ? (0.026 + Math.random() * 0.028)
+        : (0.020 + Math.random() * 0.022)) * volumeMultiplier * 0.85;
+
+      // 各個別の泡の定位（ステレオの広がり）
+      const clickPan = (Math.random() * 2 - 1);
+      const gainL = Math.cos((clickPan + 1) * Math.PI / 4);
+      const gainR = Math.sin((clickPan + 1) * Math.PI / 4);
+
+      const clickFreq = 2800 + Math.random() * 6800;
+
+      for (let j = 0; j < lengthSamples; j++) {
+        const idx = startSample + j;
+        if (idx >= bufferSize) break;
+
+        const progress = j / lengthSamples;
+        const env = Math.exp(-progress * 4.5) * (1.0 - progress);
+
+        let val = 0;
+        if (isNoise) {
+          val = (Math.random() * 2 - 1) * maxVolume * env;
+        } else {
+          const angle = (j / sampleRate) * clickFreq * Math.PI * 2;
+          val = Math.sin(angle) * maxVolume * env;
+        }
+
+        leftData[idx] += val * gainL;
+        rightData[idx] += val * gainR;
+      }
+    }
+    
+    carbonatedBufferCache = audioBuffer;
+  } catch (e) {
+    console.warn("炭酸バブルバッファの事前生成エラー:", e);
+  }
+}
+
 // 『脳リフレクソ』風の背景流れ星と波紋システム
 let bgMeteors = [];
 let bgRipples = [];
