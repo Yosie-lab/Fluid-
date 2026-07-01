@@ -228,27 +228,6 @@
     }
     #clearOverlay.show { opacity: 1; pointer-events: all; }
 
-    .clear-text {
-      font-size: clamp(24px, 5.5vw, 36px);
-      margin-bottom: 24px;
-      user-select: none;
-      -webkit-user-select: none;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-    }
-    .clear-logo-main {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 200; /* 200に戻して超極細タイポグラフィを完全再現 */
-      letter-spacing: 0.38em; /* スタート画面と同じく0.38emのオシャレなレタースペース */
-      color: #ffffff;
-      text-transform: uppercase;
-      text-shadow: 0 0 12px rgba(255, 255, 255, 0.4), 0 0 30px rgba(0, 245, 255, 0.2);
-      text-indent: 0.38em;
-      animation: logoFade 4s ease-in-out infinite alternate;
-    }
     .clear-sub {
       font-size: clamp(11px, 2.5vw, 14px);
       font-weight: 200;
@@ -481,7 +460,7 @@
 
 <!-- クリアオーバーレイ -->
 <div id="clearOverlay" role="status" aria-live="polite">
-  <div class="clear-text"><span class="clear-logo-main">SPACEY BLOOM</span><span class="logo-line"></span></div>
+  <div class="start-title"><span class="logo-main">SPACEY BLOOM</span><span class="logo-line"></span></div>
   <div class="clear-sub">脳が解放される</div>
   <button class="clear-restart" id="clearRestart" aria-label="もう一度プレイする">もう一度</button>
 </div>
