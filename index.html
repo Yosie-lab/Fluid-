@@ -1201,14 +1201,14 @@ let nucleiEnabled    = false;  /* true になるまで衝突判定しない */
 let graceStartTime   = 0;
 const GRACE_MS       = 3800;   /* 猶予時間 (ms) */
 
-/* ===== 定数 ===== */
+/* ===== 定数・動的サイズ ===== */
 const MAX_PARTICLES       = 360;
-const PARTICLE_RADIUS     = 4;
+let PARTICLE_RADIUS       = 4;
 const VISCOSITY           = 0.88;
-const CRYSTAL_STEP        = 36;
-const CRYSTAL_RADIUS      = 26;
+let CRYSTAL_STEP          = 36;
+let CRYSTAL_RADIUS        = 26;
 const NUCLEUS_COUNT       = 3;
-const NUCLEUS_SAFE_ZONE   = 180;
+let NUCLEUS_SAFE_ZONE     = 180;
 const ACTIVATION_COOLDOWN = 0.4;
 
 /* ============================================================
@@ -1223,7 +1223,16 @@ function resize() {
   canvas.style.height = H + 'px';
   ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // 画面サイズに応じて影響範囲を動的に調整（iPhoneなどの狭い画面で広がりすぎないようにする）
+  // 画面の最小幅（スマホの縦持ちなど）に基づいてスケーリング係数を算出（基準は横幅/縦幅の最小値768px）
+  const screenScale = Math.min(1.0, Math.min(W, H) / 768);
+  
+  // 粒子と結晶核を画面サイズに合わせて縮小（スマホ用最適化）
+  PARTICLE_RADIUS = Math.max(2.2, 4.0 * screenScale);
+  CRYSTAL_STEP    = Math.max(22, 36 * screenScale);
+  CRYSTAL_RADIUS  = Math.max(16, 26 * screenScale);
+  NUCLEUS_SAFE_ZONE = Math.max(100, 180 * screenScale);
+
+  // 画面サイズに応じて影響範囲を動的に調整（iPhoneなどの狭い画面で流体が広がりすぎないようにする）
   currentInfluenceRadius = Math.max(80, Math.min(180, Math.min(W, H) * 0.24));
 
   // 画面サイズに合わせて星空を初期化
