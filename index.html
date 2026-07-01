@@ -229,7 +229,7 @@
     #clearOverlay.show { opacity: 1; pointer-events: all; }
 
     .clear-text {
-      font-size: clamp(26px, 5.5vw, 40px);
+      font-size: clamp(24px, 5.5vw, 36px);
       margin-bottom: 24px;
       user-select: none;
       -webkit-user-select: none;
@@ -241,12 +241,12 @@
     }
     .clear-logo-main {
       font-family: 'Outfit', sans-serif;
-      font-weight: 350; /* 200から350に増やし、視認性アップ */
-      letter-spacing: 0.32em; /* 文字間隔を広げてオシャレなテイストを維持 */
+      font-weight: 300; /* 200から300に引き上げ、スタイリッシュな極細感を保ちつつ視認性アップ */
+      letter-spacing: 0.38em; /* スタート画面と同じく0.38emのオシャレなレタースペース */
       color: #ffffff;
       text-transform: uppercase;
-      text-shadow: 0 0 16px rgba(255, 255, 255, 0.65), 0 0 35px rgba(0, 245, 255, 0.3);
-      text-indent: 0.32em;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.5), 0 0 30px rgba(0, 245, 255, 0.25);
+      text-indent: 0.38em;
       animation: logoFade 4s ease-in-out infinite alternate;
     }
     .clear-sub {
@@ -1782,9 +1782,10 @@ function initGame() {
   for (let i = 0; i < NUCLEUS_COUNT; i++) {
     // 黄金角に基づき、螺旋状に展開させることで、重ならずかつ美しい非対称の構図を作る
     const angle = baseAngle + i * goldenAngle + (Math.random() - 0.5) * 0.25; // わずかなゆらぎ
-    // 中心からの距離。iに応じて徐々に外側に広げる（重なりを美しく避ける）
-    const distRange = Math.min(W, H) * 0.28;
-    const dist = Math.min(W, H) * 0.12 + (i / NUCLEUS_COUNT) * distRange + Math.random() * 40;
+    // 中心からの距離。中央のロゴ表示領域（SPACEY BLOOM）にかからないよう、最小回避距離（160pxまたはW/Hの24%）を確保する
+    const minAvoidDist = Math.max(165, Math.min(W, H) * 0.24);
+    const distRange = Math.min(W, H) * 0.26;
+    const dist = minAvoidDist + (i / NUCLEUS_COUNT) * distRange + Math.random() * 30;
 
     let nx = centerX + Math.cos(angle) * dist;
     let ny = centerY + Math.sin(angle) * dist;
