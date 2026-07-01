@@ -229,25 +229,35 @@
     #clearOverlay.show { opacity: 1; pointer-events: all; }
 
     .clear-text {
-      font-size: clamp(28px, 6vw, 44px);
-      margin-bottom: 16px;
+      font-size: clamp(24px, 5vw, 36px);
+      margin-bottom: 20px;
       user-select: none;
       -webkit-user-select: none;
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
       justify-content: center;
       gap: 12px;
     }
-    .clear-logo-main {
+    .clear-logo-spacey {
+      font-family: 'Syncopate', sans-serif;
+      font-weight: 700;
+      letter-spacing: 10px; /* 14pxから10pxに締め、読みやすく */
+      background: linear-gradient(90deg, #00f5ff, #bd00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: spaceyShift 6s ease-in-out infinite alternate;
+      text-indent: 10px;
+    }
+    .clear-logo-bloom {
       font-family: 'Outfit', sans-serif;
-      font-weight: 300; /* 200から300にして可読性を向上 */
-      letter-spacing: 0.3em; /* 0.38emから0.3emにして文字のまとまりを良くする */
+      font-weight: 350; /* 200から350に増やし、視認性アップ */
+      letter-spacing: 8px; /* 10pxから8pxに締め、読みやすく */
       color: #ffffff;
-      text-transform: uppercase;
-      text-shadow: 0 0 15px rgba(255, 255, 255, 0.5), 0 0 35px rgba(0, 245, 255, 0.35);
-      text-indent: 0.3em;
-      animation: logoFade 4s ease-in-out infinite alternate;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 25px rgba(189, 0, 255, 0.5);
+      animation: bloomPulse 3s ease-in-out infinite alternate;
+      margin-left: 6px;
+      text-indent: 8px;
     }
     .clear-sub {
       font-size: clamp(11px, 2.5vw, 14px);
@@ -403,6 +413,14 @@
       0% { opacity: 0.75; filter: blur(0.5px) brightness(0.9); }
       100% { opacity: 1.0; filter: blur(0px) brightness(1.1); }
     }
+    @keyframes spaceyShift {
+      0% { filter: hue-rotate(0deg); letter-spacing: 9px; }
+      100% { filter: hue-rotate(45deg); letter-spacing: 11px; }
+    }
+    @keyframes bloomPulse {
+      0% { opacity: 0.8; filter: blur(0.5px); text-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 15px rgba(189, 0, 255, 0.3); }
+      100% { opacity: 1.0; filter: blur(0px); text-shadow: 0 0 16px rgba(255, 255, 255, 1), 0 0 35px rgba(189, 0, 255, 0.8); }
+    }
   </style>
 </head>
 <body>
@@ -473,7 +491,10 @@
 
 <!-- クリアオーバーレイ -->
 <div id="clearOverlay" role="status" aria-live="polite">
-  <div class="clear-text"><span class="clear-logo-main">SPACEY BLOOM</span><span class="logo-line"></span></div>
+  <div class="clear-text">
+    <span class="clear-logo-spacey">SPACEY</span>
+    <span class="clear-logo-bloom">BLOOM</span>
+  </div>
   <div class="clear-sub">脳が解放される</div>
   <button class="clear-restart" id="clearRestart" aria-label="もう一度プレイする">もう一度</button>
 </div>
@@ -1325,12 +1346,12 @@ class CrystalNucleus {
   constructor(x, y, freq) {
     this.x = x; this.y = y; this.freq = freq;
     
-    // 形状タイプをランダムに決定
-    const shapes = ['circle', 'rect', 'triangle', 'star', 'ellipse'];
+    // 形状タイプを六角・楕円のみに限定
+    const shapes = ['hexagon', 'ellipse'];
     this.shape = shapes[Math.floor(Math.random() * shapes.length)];
     // 各形状の固有パラメータ
     this.rotAngle = Math.random() * Math.PI * 2;
-    this.aspectRatio = 0.55 + Math.random() * 0.35; // 0.55 〜 0.90 の楕円比率
+    this.aspectRatio = 0.22 + Math.random() * 0.48; // 0.22 〜 0.70 の楕円比率（細長い楕円も許容）
     
     // アート性の高い不定形成長のための異方性パラメータ
     this.growthBiasAngle = Math.random() * Math.PI * 2;  // 成長が優先されるバイアス角度
@@ -1437,12 +1458,28 @@ class CrystalNucleus {
 
   /* 流体が吸い込まれた位置の周辺に、ランダムに結晶を繋げていく動的成長アルゴリズム */
   _growUnpredictable(pX, pY, combo) {
-    // 既存のセルの中から、吸い込まれた位置に最も近い「親セル」を探索（異方性を導入）
+    // ポインター（指・カーソル）の移動方向を検出
+    const pvx = pointerX - lastPointerX;
+    const pvy = pointerY - lastPointerY;
+    const pSpeed = Math.sqrt(pvx * pvx + pvy * pvy);
+    
+    let biasAngle = this.growthBiasAngle;
+    let asymmetry = this.growthAsymmetry;
+    let hasPointerBias = false;
+    
+    // 指やカーソルが一定速度以上で動いている場合、その運動方向にバイアスをかける
+    if (pSpeed > 0.5) {
+      biasAngle = Math.atan2(pvy, pvx);
+      asymmetry = 0.12; // 動きがあるときはより極端に細長く（軌跡を描くように）成長しやすくする
+      hasPointerBias = true;
+    }
+    
+    // 既存のセルの中から、吸い込まれた位置に最も近い「親セル」を探索（ポインターの動きによる異方性を適用）
     let bestParent = this.cells[0];
     let minDist2 = Infinity;
     
-    const cosB = Math.cos(this.growthBiasAngle);
-    const sinB = Math.sin(this.growthBiasAngle);
+    const cosB = Math.cos(biasAngle);
+    const sinB = Math.sin(biasAngle);
     
     this.cells.forEach(cell => {
       const dx = pX - cell.x, dy = pY - cell.y;
@@ -1451,8 +1488,8 @@ class CrystalNucleus {
       const localX = dx * cosB + dy * sinB;
       const localY = -dx * sinB + dy * cosB;
       
-      // 軸方向の距離を異方性で歪めることで、特定の結晶主軸に沿って枝が伸びやすくする
-      const d2 = (localX * this.growthAsymmetry) ** 2 + localY ** 2;
+      // 軸方向の距離を異方性で歪めることで、特定の結晶主軸（あるいはポインターの軌跡）に沿って枝が伸びやすくする
+      const d2 = (localX * asymmetry) ** 2 + localY ** 2;
       
       if (d2 < minDist2) {
         minDist2 = d2;
@@ -1481,11 +1518,13 @@ class CrystalNucleus {
 
     let targetX, targetY;
     if (availableDirs.length > 0) {
-      // 空いている接続先の中から、吸い込まれた流体の進入角ベクトルに最も近い方向を選択
+      // 空いている接続先の中から、進行バイアス方向に最も近い方向を選択
       let bestDir = availableDirs[0];
       let maxDot = -Infinity;
-      const targetVecX = pX - bestParent.x;
-      const targetVecY = pY - bestParent.y;
+      
+      // バイアス方向（指の動きがあるときはその方向、そうでないときは吸い込まれた流体の進入方向）
+      const targetVecX = hasPointerBias ? Math.cos(biasAngle) : (pX - bestParent.x);
+      const targetVecY = hasPointerBias ? Math.sin(biasAngle) : (pY - bestParent.y);
       const targetLen = Math.sqrt(targetVecX * targetVecX + targetVecY * targetVecY) || 1;
 
       availableDirs.forEach(dir => {
@@ -1500,9 +1539,9 @@ class CrystalNucleus {
       targetX = bestDir.x;
       targetY = bestDir.y;
     } else {
-      // 完全に周囲が埋まっている場合は、少しずらした位置に強制的に新しい枝を伸ばす
-      const angle = Math.atan2(pY - bestParent.y, pX - bestParent.x);
-      const randomRad = angle + (Math.random() - 0.5) * 0.6;
+      // 完全に周囲が埋まっている場合は、指の動きの方向（または流体の方向）に強制的に新しい枝を伸ばす
+      const baseAngle = hasPointerBias ? biasAngle : Math.atan2(pY - bestParent.y, pX - bestParent.x);
+      const randomRad = baseAngle + (Math.random() - 0.5) * 0.6;
       targetX = bestParent.x + CRYSTAL_STEP * Math.cos(randomRad);
       targetY = bestParent.y + CRYSTAL_STEP * Math.sin(randomRad);
     }
@@ -1959,29 +1998,12 @@ function drawNuclei(t, skin) {
     /* 形状に応じたパス作成関数 */
     const drawShapePath = (ctx, x, y, r, shape, rot, aspect) => {
       ctx.beginPath();
-      if (shape === 'circle') {
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-      } else if (shape === 'rect') {
+      if (shape === 'hexagon') {
         ctx.translate(x, y);
         ctx.rotate(rot);
-        ctx.rect(-r, -r, r * 2, r * 2);
-      } else if (shape === 'triangle') {
-        ctx.translate(x, y);
-        ctx.rotate(rot);
-        ctx.moveTo(0, -r * 1.1);
-        ctx.lineTo(r * 1.0, r * 0.7);
-        ctx.lineTo(-r * 1.0, r * 0.7);
-        ctx.closePath();
-      } else if (shape === 'star') {
-        ctx.translate(x, y);
-        ctx.rotate(rot);
-        const points = 5;
-        const outerRad = r * 1.25;
-        const innerRad = r * 0.55;
-        for (let i = 0; i < points * 2; i++) {
-          const angle = (i * Math.PI) / points;
-          const currRad = i % 2 === 0 ? outerRad : innerRad;
-          ctx.lineTo(Math.cos(angle) * currRad, Math.sin(angle) * currRad);
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3;
+          ctx.lineTo(Math.cos(angle) * r * 1.1, Math.sin(angle) * r * 1.1);
         }
         ctx.closePath();
       } else if (shape === 'ellipse') {
