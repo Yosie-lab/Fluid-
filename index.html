@@ -9,7 +9,7 @@
   <!-- TODO(security): CDN依存を削減するためにフォントをローカルホスティングに移行することを検討してください -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&family=Syncopate:wght@700&display=swap" rel="stylesheet">
   <style>
     /* ============================================================
        デザインシステム & CSS 変数
@@ -229,12 +229,15 @@
     #clearOverlay.show { opacity: 1; pointer-events: all; }
 
     .clear-text {
-      font-size: clamp(28px, 7vw, 58px);
-      font-weight: 200;
-      letter-spacing: 0.22em;
-      color: var(--skin-crystal-a);
-      text-shadow: 0 0 40px var(--skin-glow), 0 0 80px var(--skin-glow);
-      animation: clearPulse 2.4s ease-in-out infinite;
+      font-size: clamp(24px, 5vw, 42px);
+      margin-bottom: 8px;
+      user-select: none;
+      -webkit-user-select: none;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 0 15px rgba(0, 245, 255, 0.45));
     }
     .clear-sub {
       font-size: clamp(11px, 2.5vw, 14px);
@@ -342,15 +345,33 @@
       pointer-events: none;
     }
     .start-title {
-      font-size: 2.2rem;
-      font-weight: 300;
-      letter-spacing: 8px;
-      color: #00f5ff;
-      text-shadow: 0 0 20px rgba(0, 245, 255, 0.7);
-      margin-bottom: 24px;
-      animation: startPulse 2.4s ease-in-out infinite;
+      font-size: 2.8rem;
+      margin-bottom: 32px;
       user-select: none;
       -webkit-user-select: none;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 0 15px rgba(0, 245, 255, 0.45));
+    }
+    .logo-spacey {
+      font-family: 'Syncopate', sans-serif;
+      font-weight: 700;
+      letter-spacing: 14px;
+      background: linear-gradient(90deg, #00f5ff, #bd00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: spaceyShift 6s ease-in-out infinite alternate;
+    }
+    .logo-bloom {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 200;
+      letter-spacing: 10px;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 25px rgba(189, 0, 255, 0.5);
+      animation: bloomPulse 3s ease-in-out infinite alternate;
+      margin-left: 6px;
     }
     .start-sub {
       font-size: 0.95rem;
@@ -365,9 +386,13 @@
       user-select: none;
       -webkit-user-select: none;
     }
-    @keyframes startPulse {
-      0%, 100% { opacity: 0.8; transform: scale(0.98); filter: drop-shadow(0 0 5px rgba(0, 245, 255, 0.4)); }
-      50%      { opacity: 1.0; transform: scale(1.02); filter: drop-shadow(0 0 25px rgba(0, 245, 255, 0.8)); }
+    @keyframes spaceyShift {
+      0% { filter: hue-rotate(0deg); letter-spacing: 12px; }
+      100% { filter: hue-rotate(45deg); letter-spacing: 16px; }
+    }
+    @keyframes bloomPulse {
+      0% { opacity: 0.8; filter: blur(0.5px); text-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 15px rgba(189, 0, 255, 0.3); }
+      100% { opacity: 1.0; filter: blur(0px); text-shadow: 0 0 16px rgba(255, 255, 255, 1), 0 0 35px rgba(189, 0, 255, 0.8); }
     }
   </style>
 </head>
@@ -375,7 +400,7 @@
 
 <!-- スタートオーバーレイ -->
 <div id="startOverlay" role="dialog" aria-label="ゲームスタート">
-  <h1 class="start-title">SPACEY BLOOM</h1>
+  <h1 class="start-title"><span class="logo-spacey">SPACEY</span><span class="logo-bloom">BLOOM</span></h1>
   <div class="start-sub">タップして開始</div>
 </div>
 
@@ -439,7 +464,7 @@
 
 <!-- クリアオーバーレイ -->
 <div id="clearOverlay" role="status" aria-live="polite">
-  <div class="clear-text">SPACEY BLOOM</div>
+  <div class="clear-text"><span class="logo-spacey">SPACEY</span><span class="logo-bloom">BLOOM</span></div>
   <div class="clear-sub">脳が解放される</div>
   <button class="clear-restart" id="clearRestart" aria-label="もう一度プレイする">もう一度</button>
 </div>
