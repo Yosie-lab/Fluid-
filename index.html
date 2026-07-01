@@ -1631,13 +1631,13 @@ function pregenerateCarbonatedBuffer() {
       rightData[i] = noise * amp;
     }
     
-    // 2. パチパチ音（400個）を一括加算
-    const bubbleCount = 400;
+    // 2. パチパチ音（200個に軽量化し、起動時の負荷を大きく削減。ディレイ回路が補うため豊かな響きは維持）
+    const bubbleCount = 200;
     const clickDuration = durationSeconds - 0.2;
     
     for (let i = 0; i < bubbleCount; i++) {
       let timeOffset;
-      if (i < 320) {
+      if (i < 160) {
         timeOffset = Math.pow(Math.random(), 1.4) * 4.0;
       } else {
         timeOffset = 4.0 + Math.random() * (clickDuration - 4.0);
@@ -2561,6 +2561,11 @@ window.addEventListener('load', () => {
 
       // サウンドのアンロックを実行
       unlockAudio();
+
+      // 起動直後のメインスレッドをブロックしないよう、2.2秒の遅延（カウントダウン中）をつけてバックグラウンドでバッファを生成
+      setTimeout(() => {
+        pregenerateCarbonatedBuffer();
+      }, 2200);
 
       startOverlay.classList.add('hidden');
       setTimeout(() => startOverlay.remove(), 800);
