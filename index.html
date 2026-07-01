@@ -228,23 +228,46 @@
     }
     #clearOverlay.show { opacity: 1; pointer-events: all; }
 
+    #clearOverlay .start-title {
+      font-size: clamp(26px, 5.8vw, 40px);
+      margin-bottom: 28px;
+    }
+    #clearOverlay .logo-main {
+      font-weight: 200;
+      color: #ffffff;
+      text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.85),
+        0 0 25px rgba(0, 245, 255, 0.4),
+        0 0 50px rgba(189, 0, 255, 0.35);
+      animation: clearLogoFadeAndSpread 3.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    #clearOverlay .logo-line {
+      width: 0px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.95), rgba(189, 0, 255, 0.95), transparent);
+      box-shadow: 0 0 12px rgba(0, 245, 255, 0.6);
+      animation: clearLineExtend 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+    }
     .clear-sub {
       font-size: clamp(11px, 2.5vw, 14px);
       font-weight: 200;
       letter-spacing: 0.35em;
-      color: rgba(255,255,255,0.45);
+      color: rgba(255, 255, 255, 0.45);
       text-transform: uppercase;
+      opacity: 0;
+      text-indent: 0.35em;
+      animation: clearSubFadeIn 2.2s ease-out 1.4s forwards;
     }
     .clear-restart {
       position: absolute;
       top: 20px;
       left: 20px;
       padding: 12px 36px;
-      border: 1px solid rgba(255,255,255,0.18);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 50px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
       backdrop-filter: blur(16px);
-      color: rgba(255,255,255,0.65);
+      color: rgba(255, 255, 255, 0.65);
       font-family: 'Outfit', sans-serif;
       font-size: 13px;
       font-weight: 300;
@@ -258,9 +281,31 @@
       box-shadow: 0 0 28px var(--skin-accent)44;
     }
 
-    @keyframes clearPulse {
-      0%, 100% { text-shadow: 0 0 40px var(--skin-glow), 0 0 80px var(--skin-glow); }
-      50%       { text-shadow: 0 0 60px var(--skin-glow), 0 0 130px var(--skin-glow), 0 0 220px var(--skin-glow); }
+    @keyframes clearLogoFadeAndSpread {
+      0% {
+        opacity: 0;
+        letter-spacing: 0.22em;
+        text-indent: 0.22em;
+        filter: blur(8px);
+      }
+      30% {
+        opacity: 0.8;
+        filter: blur(2px);
+      }
+      100% {
+        opacity: 1.0;
+        letter-spacing: 0.45em;
+        text-indent: 0.45em;
+        filter: blur(0px);
+      }
+    }
+    @keyframes clearLineExtend {
+      0% { width: 0px; opacity: 0; }
+      100% { width: 72px; opacity: 0.9; }
+    }
+    @keyframes clearSubFadeIn {
+      0% { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 0.55; transform: translateY(0); }
     }
 
     /* ============================================================
