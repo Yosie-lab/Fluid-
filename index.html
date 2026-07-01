@@ -229,35 +229,25 @@
     #clearOverlay.show { opacity: 1; pointer-events: all; }
 
     .clear-text {
-      font-size: clamp(24px, 5vw, 36px);
-      margin-bottom: 20px;
+      font-size: clamp(26px, 5.5vw, 40px);
+      margin-bottom: 24px;
       user-select: none;
       -webkit-user-select: none;
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 12px;
     }
-    .clear-logo-spacey {
-      font-family: 'Syncopate', sans-serif;
-      font-weight: 700;
-      letter-spacing: 10px; /* 14pxから10pxに締め、読みやすく */
-      background: linear-gradient(90deg, #00f5ff, #bd00ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: spaceyShift 6s ease-in-out infinite alternate;
-      text-indent: 10px;
-    }
-    .clear-logo-bloom {
+    .clear-logo-main {
       font-family: 'Outfit', sans-serif;
       font-weight: 350; /* 200から350に増やし、視認性アップ */
-      letter-spacing: 8px; /* 10pxから8pxに締め、読みやすく */
+      letter-spacing: 0.32em; /* 文字間隔を広げてオシャレなテイストを維持 */
       color: #ffffff;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 25px rgba(189, 0, 255, 0.5);
-      animation: bloomPulse 3s ease-in-out infinite alternate;
-      margin-left: 6px;
-      text-indent: 8px;
+      text-transform: uppercase;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.65), 0 0 35px rgba(0, 245, 255, 0.3);
+      text-indent: 0.32em;
+      animation: logoFade 4s ease-in-out infinite alternate;
     }
     .clear-sub {
       font-size: clamp(11px, 2.5vw, 14px);
@@ -491,10 +481,7 @@
 
 <!-- クリアオーバーレイ -->
 <div id="clearOverlay" role="status" aria-live="polite">
-  <div class="clear-text">
-    <span class="clear-logo-spacey">SPACEY</span>
-    <span class="clear-logo-bloom">BLOOM</span>
-  </div>
+  <div class="clear-text"><span class="clear-logo-main">SPACEY BLOOM</span><span class="logo-line"></span></div>
   <div class="clear-sub">脳が解放される</div>
   <button class="clear-restart" id="clearRestart" aria-label="もう一度プレイする">もう一度</button>
 </div>
