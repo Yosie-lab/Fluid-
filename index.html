@@ -211,6 +211,43 @@
       font-size: 13px;
     }
 
+    /* ── Bloom カラーパレット選択チップ ── */
+    .bloom-palette-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .bloom-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.65);
+      transition: border-color 0.2s, background 0.2s, transform 0.12s;
+      white-space: nowrap;
+    }
+    .bloom-chip:hover {
+      background: rgba(255,255,255,0.09);
+      transform: translateY(-1px);
+    }
+    .bloom-chip.active {
+      border-color: rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.11);
+      color: rgba(255,255,255,0.95);
+    }
+    .bloom-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
     /* ============================================================
        クリアオーバーレイ
     ============================================================ */
@@ -465,10 +502,13 @@
 </div>
 
 <!-- スキン選択パネル -->
-<div id="skinPanel" role="dialog" aria-label="スキン選択" aria-hidden="true">
+<div id="skinPanel" role="dialog" aria-label="設定" aria-hidden="true">
   <div class="panel-handle"></div>
   <p class="panel-title">テーマを選択</p>
   <div class="skin-grid" id="skinGrid"></div>
+
+  <p class="panel-title" style="margin-top:20px;">Bloom カラー</p>
+  <div class="bloom-palette-grid" id="bloomPaletteGrid" role="group" aria-label="Bloomカラーパターン選択"></div>
 </div>
 
 <!-- クリアオーバーレイ -->
@@ -540,10 +580,24 @@ const SKINS = [
 ];
 
 /* ============================================================
+   Bloom カラーパレット定義
+   hueMin/hueMax = null のとき baseHue 起点で全色相を回転（レインボー）
+   それ以外はその範囲内のみで発色
+============================================================ */
+const BLOOM_PALETTES = [
+  { id: 0, name: '🌈 レインボー',        hueShift: 4.5, hueMin: null, hueMax: null, sat: 90, lit: 68 },
+  { id: 1, name: '💙 ディープオーシャン', hueShift: 0.8, hueMin: 190,  hueMax: 230,  sat: 80, lit: 58 },
+  { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.5, hueMin: 265,  hueMax: 305,  sat: 75, lit: 55 },
+  { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
+  { id: 4, name: '🔥 サンセット',        hueShift: 1.2, hueMin:  10,  hueMax:  55,  sat: 95, lit: 62 },
+];
+
+/* ============================================================
    ゲーム状態
 ============================================================ */
 const STATE = {
   skinId: 0,
+  bloomPaletteId: 0, // Bloom カラーパターン選択 (0=レインボー)
   soundEnabled: true,
   phase: 'flow',
 };
@@ -584,6 +638,13 @@ function getSkinHue(skinId) {
     }
     const rawSnd = localStorage.getItem('fc_sound');
     if (rawSnd !== null) STATE.soundEnabled = rawSnd !== '0';
+    const rawBloom = localStorage.getItem('fc_bloomPaletteId');
+    if (rawBloom !== null) {
+      const parsedBloom = parseInt(rawBloom, 10);
+      if (Number.isFinite(parsedBloom) && parsedBloom >= 0 && parsedBloom < BLOOM_PALETTES.length) {
+        STATE.bloomPaletteId = parsedBloom;
+      }
+    }
   } catch (_) { /* localStorage 利用不可でも無視 */ }
 })();
 
@@ -1179,6 +1240,49 @@ function buildSkinPanel() {
     });
 
     grid.appendChild(card);
+  });
+
+  /* ── Bloom カラーチップを構築 ── */
+  // パレットごとの代表色（プレビュー用ドット）
+  const BLOOM_DOT_COLORS = ['#ff80e0', '#3ab5f8', '#8855ee', '#3ddc84', '#ff6b3d'];
+  const bloomGrid = document.getElementById('bloomPaletteGrid');
+  bloomGrid.replaceChildren();
+
+  BLOOM_PALETTES.forEach((pal, idx) => {
+    const chip = document.createElement('button');
+    chip.className = 'bloom-chip' + (idx === STATE.bloomPaletteId ? ' active' : '');
+    chip.setAttribute('type', 'button');
+    chip.setAttribute('aria-pressed', String(idx === STATE.bloomPaletteId));
+    chip.setAttribute('aria-label', pal.name);
+    chip.dataset.bloomId = String(idx);
+
+    const dot = document.createElement('span');
+    dot.className = 'bloom-dot';
+    dot.style.background = BLOOM_DOT_COLORS[idx] || '#fff';
+    dot.setAttribute('aria-hidden', 'true');
+
+    const label = document.createElement('span');
+    label.textContent = pal.name; // textContent で XSS 安全
+
+    chip.appendChild(dot);
+    chip.appendChild(label);
+
+    chip.addEventListener('click', () => {
+      STATE.bloomPaletteId = idx;
+      try { localStorage.setItem('fc_bloomPaletteId', String(idx)); } catch (_) {}
+      // キャッシュ済み結晶を無効化して再描画
+      if (typeof crystalNuclei !== 'undefined') {
+        crystalNuclei.forEach(n => { n.isCached = false; n.cacheCanvas = null; });
+      }
+      document.querySelectorAll('.bloom-chip').forEach(c => {
+        c.classList.remove('active');
+        c.setAttribute('aria-pressed', 'false');
+      });
+      chip.classList.add('active');
+      chip.setAttribute('aria-pressed', 'true');
+    });
+
+    bloomGrid.appendChild(chip);
   });
 }
 
@@ -2167,14 +2271,23 @@ function drawCrystals(t, skin) {
       const r = cell.r * cell.grow;
       const a = 0.12 + cell.grow * 0.78;
 
-      // 色彩の計算: 成長の順番(cell.idx)に応じて色相をなめらかに回す
+      // 色彩の計算: 選択中の Bloom パレットに従い色相を決定
       const comboBonus = cell.combo ? cell.combo * 5 : 0;
-      const cellHue = (baseHue + cell.idx * 4.5 + comboBonus) % 360;
-      
+      const _bPal = BLOOM_PALETTES[STATE.bloomPaletteId] || BLOOM_PALETTES[0];
+      let cellHue;
+      if (_bPal.hueMin !== null) {
+        // 指定範囲内で振動（hueMin〜hueMax）
+        const _range = _bPal.hueMax - _bPal.hueMin;
+        cellHue = _bPal.hueMin + ((cell.idx * _bPal.hueShift + comboBonus * 0.5) % _range);
+      } else {
+        // レインボー: baseHue 起点で全色相回転
+        cellHue = (baseHue + cell.idx * _bPal.hueShift + comboBonus) % 360;
+      }
+
       // 【凝固発光演出】: まだ実体化しきっていない（grow < 1）の時は、白熱した熱い光として白っぽく発光
       const isSolidifying = cell.grow < 1.0;
-      const lightness = isSolidifying ? (88 - cell.grow * 20) : (68 + (cell.combo > 5 ? 8 : 0));
-      const saturation = isSolidifying ? (45 + cell.grow * 45) : 90;
+      const lightness = isSolidifying ? (88 - cell.grow * 20) : (_bPal.lit + (cell.combo > 5 ? 8 : 0));
+      const saturation = isSolidifying ? (45 + cell.grow * 45) : _bPal.sat;
 
       const strokeColor = `hsla(${cellHue}, ${saturation}%, ${lightness}%, ${a * 0.7})`;
       const fillOpacity = (isSolidifying ? (0.15 - cell.grow * 0.1) : 0.05) * (1.0 + (cell.combo || 1) * 0.012) * cell.grow;
@@ -2221,12 +2334,19 @@ function createNucleusCache(nucleus, skin) {
     const r = cell.r;
     const a = 0.9; // 安定後の最大の不透明度
 
-    const cellHue = (baseHue + cell.idx * 4.5 + (cell.combo ? cell.combo * 5 : 0)) % 360;
-    
+    const _bPalC = BLOOM_PALETTES[STATE.bloomPaletteId] || BLOOM_PALETTES[0];
+    let cellHue;
+    if (_bPalC.hueMin !== null) {
+      const _rangeC = _bPalC.hueMax - _bPalC.hueMin;
+      cellHue = _bPalC.hueMin + ((cell.idx * _bPalC.hueShift + (cell.combo ? cell.combo * 2.5 : 0)) % _rangeC);
+    } else {
+      cellHue = (baseHue + cell.idx * _bPalC.hueShift + (cell.combo ? cell.combo * 5 : 0)) % 360;
+    }
+
     // 目に優しい調整済みの安定した色設定
-    const strokeColor = `hsla(${cellHue}, 90%, 68%, ${a * 0.7})`;
+    const strokeColor = `hsla(${cellHue}, ${_bPalC.sat}%, ${_bPalC.lit}%, ${a * 0.7})`;
     const fillOpacity = 0.05 * (1.0 + (cell.combo || 1) * 0.012);
-    const fillColor = `hsla(${(cellHue + 25) % 360}, 90%, 58%, ${a * fillOpacity})`;
+    const fillColor = `hsla(${(cellHue + 25) % 360}, ${_bPalC.sat}%, ${_bPalC.lit - 10}%, ${a * fillOpacity})`;
 
     ctx.save();
     ctx.globalAlpha = a;
