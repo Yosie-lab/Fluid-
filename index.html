@@ -623,10 +623,20 @@ function startAmbientSolfeggio() {
     solfeggioNodes.push(revMix);
 
     // 接続処理
+    // 畳み込みリバーブ（残響ノード）を取得し、アンビエント和音と贅沢に結合
+    const reverb = getReverbNode(ctx);
+    
+    // リバーブへのセンドゲイン（環境音の残響を深く心地よく調整）
+    const reverbSend = ctx.createGain();
+    reverbSend.gain.setValueAtTime(0.68, now); // 深い宇宙空間のように包み込む 68% のセンド量
+    solfeggioNodes.push(reverbSend);
+
     solfeggioGain.connect(solfeggioFilterNode);
     solfeggioFilterNode.connect(directGain);
     directGain.connect(ctx.destination);
 
+    // フィルタ音を直接リバーブへも送り、音像を心地よくぼかす
+    solfeggioFilterNode.connect(reverbSend);
     solfeggioFilterNode.connect(delayL);
     solfeggioFilterNode.connect(delayR);
 
@@ -637,7 +647,13 @@ function startAmbientSolfeggio() {
     delayR.connect(crossR); crossR.connect(delayL);
 
     delayL.connect(revMix); delayR.connect(revMix);
+    
+    // 左右ディレイの反響音もリバーブへ送って空気中に美しく拡散
+    delayL.connect(reverbSend);
+    delayR.connect(reverbSend);
+
     revMix.connect(ctx.destination);
+    reverbSend.connect(reverb);
 
     // Cmaj9和音構成（ド・ミ・ソ・シ・レ）
     // 主音の528HzをC5（ド）として、純正律に近い比率で美しい和声を構成
