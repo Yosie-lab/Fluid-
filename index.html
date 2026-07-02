@@ -65,23 +65,24 @@
     }
 
     .ctrl-btn {
-      width: 40px; height: 40px;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
-      background: rgba(0,0,0,0.25);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      width: 32px; height: 32px; /* 40px から 32px へ縮小して死角を低減 */
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 9px;
+      background: rgba(0,0,0,0.2);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
-      transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-      color: rgba(255,255,255,0.5);
-      font-size: 16px;
+      transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease, opacity 0.2s ease;
+      color: rgba(255,255,255,0.45);
+      font-size: 14px;
+      opacity: 0.6; /* プレイの邪魔にならないよう、通常時は不透明度 60% に抑える */
     }
     .ctrl-btn:hover {
       border-color: var(--skin-accent);
       color: var(--skin-accent);
-      box-shadow: 0 0 16px var(--skin-accent)44;
-      transform: scale(1.06);
+      opacity: 1.0;
+      transform: scale(1.05);
     }
     .ctrl-btn:active { transform: scale(0.94); }
 
@@ -305,25 +306,26 @@
     }
     .clear-restart {
       position: absolute;
-      top: 20px;
-      left: 20px;
-      padding: 12px 36px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 50px;
+      top: 16px;
+      left: 16px;
+      padding: 8px 18px; /* 12px 36px から縮小 */
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 30px; /* 50px から縮小 */
       background: rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(16px);
-      color: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(12px);
+      color: rgba(255, 255, 255, 0.6);
       font-family: 'Outfit', sans-serif;
-      font-size: 13px;
+      font-size: 11px; /* 13px から縮小 */
       font-weight: 300;
       letter-spacing: 0.18em;
       cursor: pointer;
       transition: border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+      text-indent: 0.18em;
     }
     .clear-restart:hover {
       border-color: var(--skin-accent);
       color: var(--skin-accent);
-      box-shadow: 0 0 28px var(--skin-accent)44;
+      box-shadow: 0 0 16px var(--skin-accent)33;
     }
 
 
