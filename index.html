@@ -272,6 +272,32 @@
     }
     #hint.hidden { opacity: 0; }
 
+    /* スキントースト通知 */
+    #skinToast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(8, 14, 24, 0.74);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 10px 24px;
+      border-radius: 30px;
+      color: rgba(224, 242, 254, 0.85);
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10000;
+      transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    #skinToast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-10px);
+    }
+
     /* ============================================================
        ローダー
     ============================================================ */
@@ -453,6 +479,9 @@
 <!-- チュートリアルヒント -->
 <div id="hint" aria-label="操作ヒント">画面をなぞって光る流体を導こう</div>
 
+<!-- スキントースト通知 -->
+<div id="skinToast" role="status" aria-live="polite"></div>
+
 <script>
 /*
  * TODO(security): 本番環境では以下の HTTP セキュリティヘッダーを設定してください:
@@ -472,39 +501,39 @@
 ============================================================ */
 const SKINS = [
   {
-    id: 0, name: '💧 水 × クリスタル', price: 'FREE', locked: false,
+    id: 0, name: '💧 水 × クリスタル',
     fluidA: '#00f5ff', fluidB: '#0080ff',
     crystalA: '#e0f8ff', crystalB: '#a8e6ff',
     glow: '#00f5ff', bgA: '#000510', bgB: '#001830', accent: '#00d4ff',
     soundFreq: 528, // ソルフェジオ 528Hz (奇跡・DNA修復)
   },
   {
-    id: 1, name: '🔥 溶岩 × 黒曜石', price: '¥200', locked: true,
-    fluidA: '#ff4500', fluidB: '#ff8c00',
-    crystalA: '#ffb347', crystalB: '#3d1500',
-    glow: '#ff4500', bgA: '#0a0200', bgB: '#1a0500', accent: '#ff6600',
-    soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
-  },
-  {
-    id: 2, name: '🌌 星雲 × 星座', price: '¥300', locked: true,
-    fluidA: '#9d50ff', fluidB: '#4f0aff',
-    crystalA: '#ffe066', crystalB: '#ffffff',
-    glow: '#9d50ff', bgA: '#02000f', bgB: '#0a0030', accent: '#bb86fc',
-    soundFreq: 963, // ソルフェジオ 963Hz (宇宙とのつながり・高次元の活性化)
-  },
-  {
-    id: 3, name: '🌸 桜 × 翡翠', price: '¥250', locked: true,
+    id: 1, name: '🌸 桜 × 翡翠',
     fluidA: '#ff80b0', fluidB: '#ffb3d1',
     crystalA: '#50fa7b', crystalB: '#a8ffb8',
     glow: '#ff80b0', bgA: '#080008', bgB: '#180010', accent: '#ff80b0',
     soundFreq: 639, // ソルフェジオ 639Hz (愛・調和・人間関係の修復)
   },
   {
-    id: 4, name: '⚡ 雷 × 霧氷', price: '¥400', locked: true,
+    id: 2, name: '🌌 星雲 × 深宇宙',
+    fluidA: '#9d50ff', fluidB: '#4f0aff',
+    crystalA: '#ffe066', crystalB: '#ffffff',
+    glow: '#9d50ff', bgA: '#02000f', bgB: '#0a0030', accent: '#bb86fc',
+    soundFreq: 963, // ソルフェジオ 963Hz (宇宙とのつながり・高次元の活性化)
+  },
+  {
+    id: 3, name: '✨ 黄金 × 琥珀',
     fluidA: '#fff700', fluidB: '#ffd700',
-    crystalA: '#b0e8ff', crystalB: '#e8f8ff',
-    glow: '#fff700', bgA: '#000805', bgB: '#001015', accent: '#fff700',
+    crystalA: '#ffb85c', crystalB: '#ff6f00',
+    glow: '#fff700', bgA: '#080500', bgB: '#1a1000', accent: '#ffd700',
     soundFreq: 852, // ソルフェジオ 852Hz (直感の覚醒・インスピレーション)
+  },
+  {
+    id: 4, name: '🤍 墨汁 × 銀世界',
+    fluidA: '#4a5568', fluidB: '#1a202c',
+    crystalA: '#e2e8f0', crystalB: '#cbd5e1',
+    glow: '#a0aec0', bgA: '#050508', bgB: '#101015', accent: '#a0aec0',
+    soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
   },
 ];
 
@@ -2486,6 +2515,46 @@ document.getElementById('btnReset').addEventListener('click', resetGame);
 document.getElementById('clearRestart').addEventListener('click', resetGame);
 
 window.addEventListener('resize', () => { resize(); resetGame(); });
+
+/* ============================================================
+   ダブルタップ/ダブルクリックによるスキン切り替え & トースト通知
+============================================================ */
+let toastTimeout = null;
+function showSkinToast(text) {
+  const toast = document.getElementById('skinToast');
+  if (!toast) return;
+  toast.innerText = text;
+  toast.classList.add('show');
+  
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 1800);
+}
+
+function cycleSkin() {
+  const nextId = (STATE.skinId + 1) % SKINS.length;
+  applySkin(nextId);
+  showSkinToast(SKINS[nextId].name);
+}
+
+// デスクトップ用ダブルクリック
+window.addEventListener('dblclick', cycleSkin);
+
+// モバイル用ダブルタップ判定
+let lastTapTime = 0;
+window.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  const diff = now - lastTapTime;
+  // 画面上のボタン（リスタートなど）の操作時は切り替えを無効化
+  if (e.target.tagName === 'BUTTON' || e.target.closest('#clearOverlay')) return;
+  
+  if (diff < 300 && diff > 0) {
+    cycleSkin();
+    e.preventDefault();
+  }
+  lastTapTime = now;
+});
 
 /* ============================================================
    スタートアップ
