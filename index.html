@@ -2594,7 +2594,8 @@ canvas.addEventListener('touchend', () => {
 let skinPanelOpen = false;
 const skinPanel = document.getElementById('skinPanel');
 
-document.getElementById('btnSettings').addEventListener('click', () => {
+document.getElementById('btnSettings').addEventListener('click', (e) => {
+  e.stopPropagation(); // document の click バブルでパネルが即閉じるのを防ぐ
   skinPanelOpen = !skinPanelOpen;
   skinPanel.classList.toggle('open', skinPanelOpen);
   skinPanel.setAttribute('aria-hidden', String(!skinPanelOpen));
