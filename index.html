@@ -55,7 +55,13 @@
     }
 
     #controls {
-      display: none !important; /* 右上の3つのボタン（スキン、サウンド、リセット）を削除（非表示） */
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: all;
     }
 
     .ctrl-btn {
@@ -420,14 +426,10 @@
 <!-- 最小UIオーバーレイ -->
 <div id="ui" role="complementary" aria-label="ゲームコントロール">
   <div id="controls">
-    <button class="ctrl-btn" id="btnSkin" aria-label="スキンを変更" title="スキン変更">
+    <button class="ctrl-btn" id="btnSettings" aria-label="設定" title="設定">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="10"/>
-        <circle cx="8.5"  cy="9"    r="1.5" fill="currentColor" stroke="none"/>
-        <circle cx="15.5" cy="9"    r="1.5" fill="currentColor" stroke="none"/>
-        <circle cx="8"    cy="14.5" r="1.5" fill="currentColor" stroke="none"/>
-        <circle cx="16"   cy="14.5" r="1.5" fill="currentColor" stroke="none"/>
-        <circle cx="12"   cy="17"   r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     </button>
 
@@ -2472,7 +2474,7 @@ canvas.addEventListener('touchend', () => {
 let skinPanelOpen = false;
 const skinPanel = document.getElementById('skinPanel');
 
-document.getElementById('btnSkin').addEventListener('click', () => {
+document.getElementById('btnSettings').addEventListener('click', () => {
   skinPanelOpen = !skinPanelOpen;
   skinPanel.classList.toggle('open', skinPanelOpen);
   skinPanel.setAttribute('aria-hidden', String(!skinPanelOpen));
@@ -2481,7 +2483,7 @@ document.getElementById('btnSkin').addEventListener('click', () => {
 
 document.addEventListener('click', e => {
   if (!skinPanelOpen) return;
-  if (!skinPanel.contains(e.target) && e.target.id !== 'btnSkin') closeSkinPanel();
+  if (!skinPanel.contains(e.target) && e.target.id !== 'btnSettings') closeSkinPanel();
 });
 
 function closeSkinPanel() {
