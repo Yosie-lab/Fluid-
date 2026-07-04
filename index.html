@@ -609,9 +609,9 @@ const SKINS = [
    それ以外はその範囲内のみで発色
 ============================================================ */
 const BLOOM_PALETTES = [
-  { id: 0, name: '🌈 レインボー',        hueShift: 4.5, hueMin: 80,   hueMax: 350,  sat: 85, lit: 61 },
+  { id: 0, name: '🌈 レインボー',        hueShift: 4.5, hueMin: null, hueMax: null, sat: 90, lit: 68 },
   { id: 1, name: '💙 ディープオーシャン', hueShift: 0.8, hueMin: 190,  hueMax: 230,  sat: 80, lit: 58 },
-  { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.6, hueMin: 215,  hueMax: 245,  sat: 98, lit: 56 },
+  { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.6, hueMin: 215,  hueMax: 245,  sat: 98, lit: 30 },
   { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
   { id: 4, name: '🔥 サンセット',        hueShift: 1.2, hueMin:  10,  hueMax:  55,  sat: 95, lit: 62 },
   { id: 5, name: '💜 ブルーパープル',    hueShift: 0.8, hueMin: 245,  hueMax: 285,  sat: 85, lit: 60 },
@@ -1208,6 +1208,11 @@ function applySkin(id) {
   r.setProperty('--skin-accent',    skin.accent);
   try { localStorage.setItem('fc_skinId', String(id)); } catch (_) {}
   // ※ resetGame() はここでは呼ばない。呼び出し元が状況に応じて制御する。
+  
+  // キャッシュ済みの結晶画像をスキンカラーに合わせて再生成するためにキャッシュを破棄
+  if (typeof crystalNuclei !== 'undefined') {
+    crystalNuclei.forEach(n => { n.isCached = false; n.cacheCanvas = null; });
+  }
 }
 
 /* ============================================================
@@ -1261,14 +1266,7 @@ function buildSkinPanel() {
       document.querySelectorAll('.skin-card').forEach(c => c.classList.remove('active'));
       card.classList.add('active');
       closeSkinPanel();
-      // エンド画面（クリアオーバーレイ表示中）以外の場合のみリセット
-      const isClearShowing = document.getElementById('clearOverlay').classList.contains('show');
-      if (!isClearShowing) {
-        resetGame();
-      } else {
-        // エンド画面中はテーマだけ切り替えてそのまま維持
-        showToast(skin.name + ' に変更しました');
-      }
+      showToast(skin.name + ' に変更しました');
     });
     card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
