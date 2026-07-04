@@ -609,7 +609,7 @@ const SKINS = [
    それ以外はその範囲内のみで発色
 ============================================================ */
 const BLOOM_PALETTES = [
-  { id: 0, name: '🌈 レインボー',        hueShift: 4.5, hueMin: 165,  hueMax: 310,  sat: 80, lit: 54 },
+  { id: 0, name: '🌈 レインボー',        hueShift: 4.5, hueMin: 80,   hueMax: 350,  sat: 85, lit: 61 },
   { id: 1, name: '💙 ディープオーシャン', hueShift: 0.8, hueMin: 190,  hueMax: 230,  sat: 80, lit: 58 },
   { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.6, hueMin: 215,  hueMax: 245,  sat: 80, lit: 78 },
   { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
@@ -1279,7 +1279,7 @@ function buildSkinPanel() {
 
   /* ── Bloom カラーチップを構築 ── */
   // パレットごとの代表色（プレビュー用ドット）
-  const BLOOM_DOT_COLORS = ['#40c0ff', '#3ab5f8', '#4d7dff', '#3ddc84', '#ff6b3d', '#bb77dd', '#ff44bb'];
+  const BLOOM_DOT_COLORS = ['#ff80e0', '#3ab5f8', '#4d7dff', '#3ddc84', '#ff6b3d', '#bb77dd', '#ff44bb'];
   const bloomGrid = document.getElementById('bloomPaletteGrid');
   bloomGrid.replaceChildren();
 
