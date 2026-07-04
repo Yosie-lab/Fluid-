@@ -51,7 +51,7 @@
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       pointer-events: none;
-      z-index: 10;
+      z-index: 10000;
     }
 
     #controls {
@@ -65,7 +65,7 @@
     }
 
     .ctrl-btn {
-      width: 32px; height: 32px; /* 40px から 32px へ縮小して死角を低減 */
+      width: 40px; height: 40px; /* タップ可能領域確保のため 40px に拡大 */
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 9px;
       background: rgba(0,0,0,0.2);
@@ -135,7 +135,7 @@
       padding: 16px 20px 44px;
       transform: translateY(100%);
       transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-      z-index: 100;
+      z-index: 10001;
       pointer-events: all;
 
       /* iPhone SE などの小さな画面でスクロールできるように制限・設定 */
@@ -292,7 +292,7 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 1.2s ease;
-      z-index: 50;
+      z-index: 9998;
     }
     #clearOverlay.show { opacity: 1; pointer-events: all; }
 
@@ -364,7 +364,7 @@
       letter-spacing: 0.12em;
       opacity: 0;
       pointer-events: none;
-      z-index: 10000;
+      z-index: 10002;
       transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     }
     #skinToast.show {
@@ -2507,6 +2507,42 @@ function triggerClear() {
 
 
 /* ============================================================
+   ゲーム終了（タイトルに戻る）
+============================================================ */
+function exitGame() {
+  stopFlowNoise();
+  if (animId)      cancelAnimationFrame(animId);
+  if (rafReadyId)  cancelAnimationFrame(rafReadyId);
+
+  /* クリアオーバーレイをリセット */
+  const clr = document.getElementById('clearOverlay');
+  if (clr) {
+    clr.classList.remove('show');
+    clr.style.opacity      = '0';
+    clr.style.pointerEvents = 'none';
+  }
+
+  const readyWrap = document.getElementById('readyWrap');
+  if (readyWrap) readyWrap.classList.remove('show');
+
+  /* ヒントを復活させる */
+  const hint = document.getElementById('hint');
+  if (hint) hint.classList.remove('hidden');
+
+  hasGameStarted = false;
+
+  /* スタートオーバーレイを再表示 */
+  const startOverlay = document.getElementById('startOverlay');
+  if (startOverlay) {
+    startOverlay.classList.remove('hidden');
+  }
+
+  initGame();
+  gameLoop();
+}
+
+
+/* ============================================================
    ゲームリセット
 ============================================================ */
 function resetGame() {
@@ -2611,13 +2647,31 @@ canvas.addEventListener('touchend', () => {
 let skinPanelOpen = false;
 const skinPanel = document.getElementById('skinPanel');
 
-document.getElementById('btnSettings').addEventListener('click', (e) => {
-  e.stopPropagation(); // document の click バブルでパネルが即閉じるのを防ぐ
-  skinPanelOpen = !skinPanelOpen;
-  skinPanel.classList.toggle('open', skinPanelOpen);
-  skinPanel.setAttribute('aria-hidden', String(!skinPanelOpen));
-  if (skinPanelOpen) buildSkinPanel();
-});
+const btnSettings = document.getElementById('btnSettings');
+if (btnSettings) {
+  btnSettings.addEventListener('click', (e) => {
+    e.stopPropagation(); // document の click バブルでパネルが即閉じるのを防ぐ
+    skinPanelOpen = !skinPanelOpen;
+    skinPanel.classList.toggle('open', skinPanelOpen);
+    skinPanel.setAttribute('aria-hidden', String(!skinPanelOpen));
+    if (skinPanelOpen) {
+      buildSkinPanel();
+      updateResetButtonState();
+    }
+  });
+  btnSettings.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+  });
+}
+
+if (skinPanel) {
+  skinPanel.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+  skinPanel.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+  });
+}
 
 document.addEventListener('click', e => {
   if (!skinPanelOpen) return;
@@ -2638,6 +2692,19 @@ function updateSoundSettingsButton() {
   }
 }
 
+/* システム設定ボタン（リセット/終了）状態同期 */
+function updateResetButtonState() {
+  const btn = document.getElementById('btnResetSettings');
+  if (!btn) return;
+  if (hasGameStarted && STATE.phase === 'flow') {
+    btn.style.display = '';
+    btn.innerText = '終了';
+    btn.setAttribute('aria-label', 'ゲームを終了してタイトルに戻る');
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
 document.getElementById('btnSoundSettings').addEventListener('click', () => {
   STATE.soundEnabled = !STATE.soundEnabled;
   updateSoundSettingsButton();
@@ -2655,7 +2722,11 @@ updateSoundSettingsButton();
 
 document.getElementById('btnResetSettings').addEventListener('click', () => {
   closeSkinPanel();
-  resetGame();
+  if (hasGameStarted && STATE.phase === 'flow') {
+    exitGame();
+  } else {
+    resetGame();
+  }
 });
 document.getElementById('clearRestart').addEventListener('click', resetGame);
 
@@ -2727,6 +2798,10 @@ window.addEventListener('load', () => {
   if (startOverlay) {
     const handleStart = () => {
       if (hasGameStarted) return;
+      if (skinPanelOpen) {
+        closeSkinPanel();
+        return;
+      }
       hasGameStarted = true;
 
       // サウンドのアンロックを実行
@@ -2738,7 +2813,6 @@ window.addEventListener('load', () => {
       }, 2200);
 
       startOverlay.classList.add('hidden');
-      setTimeout(() => startOverlay.remove(), 800);
 
       // ゲームのカウントダウンを開始
       startReadyRing();
