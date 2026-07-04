@@ -611,7 +611,7 @@ const SKINS = [
 const BLOOM_PALETTES = [
   { id: 0, name: '🌈 レインボー',        hueShift: 4.5, hueMin: 140,  hueMax: 310,  sat: 80, lit: 48 },
   { id: 1, name: '💙 ディープオーシャン', hueShift: 0.8, hueMin: 190,  hueMax: 230,  sat: 80, lit: 58 },
-  { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.6, hueMin: 215,  hueMax: 245,  sat: 80, lit: 54 },
+  { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.6, hueMin: 215,  hueMax: 245,  sat: 80, lit: 68 },
   { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
   { id: 4, name: '🔥 サンセット',        hueShift: 1.2, hueMin:  10,  hueMax:  55,  sat: 95, lit: 62 },
   { id: 5, name: '💜 ブルーパープル',    hueShift: 0.8, hueMin: 245,  hueMax: 285,  sat: 85, lit: 60 },
@@ -2326,8 +2326,8 @@ function drawCrystals(t, skin) {
       const saturation = isSolidifying ? (45 + cell.grow * 45) : _bPal.sat;
 
       const strokeColor = `hsla(${cellHue}, ${saturation}%, ${lightness}%, ${a * 0.7})`;
-      const fillOpacity = (isSolidifying ? (0.15 - cell.grow * 0.1) : 0.05) * (1.0 + (cell.combo || 1) * 0.012) * cell.grow;
-      const fillColor = `hsla(${(cellHue + 25) % 360}, 90%, 58%, ${a * fillOpacity})`;
+      const fillOpacity = (isSolidifying ? (0.25 - cell.grow * 0.15) : 0.12) * (1.0 + (cell.combo || 1) * 0.012) * cell.grow;
+      const fillColor = `hsla(${(cellHue + 25) % 360}, ${_bPal.sat}%, ${_bPal.lit}%, ${a * fillOpacity})`;
 
       ctx2d.save();
       ctx2d.globalAlpha = a;
@@ -2381,8 +2381,8 @@ function createNucleusCache(nucleus, skin) {
 
     // 目に優しい調整済みの安定した色設定
     const strokeColor = `hsla(${cellHue}, ${_bPalC.sat}%, ${_bPalC.lit}%, ${a * 0.7})`;
-    const fillOpacity = 0.05 * (1.0 + (cell.combo || 1) * 0.012);
-    const fillColor = `hsla(${(cellHue + 25) % 360}, ${_bPalC.sat}%, ${_bPalC.lit - 10}%, ${a * fillOpacity})`;
+    const fillOpacity = 0.12 * (1.0 + (cell.combo || 1) * 0.012);
+    const fillColor = `hsla(${(cellHue + 25) % 360}, ${_bPalC.sat}%, ${_bPalC.lit}%, ${a * fillOpacity})`;
 
     ctx.save();
     ctx.globalAlpha = a;
