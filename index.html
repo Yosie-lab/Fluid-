@@ -389,10 +389,10 @@
     .loader-ring {
       width: 32px; height: 32px;
       border-radius: 50%;
-      border: 1.5px solid rgba(0,245,255,0.15);
-      border-top-color: #00f5ff;
+      border: 1.5px solid rgba(255,0,170,0.15);
+      border-top-color: #ff00aa;
       animation: spin 0.9s linear infinite;
-      box-shadow: 0 0 14px #00f5ff66;
+      box-shadow: 0 0 14px #ff00aa66;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -449,9 +449,9 @@
     .logo-line {
       width: 48px;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.8), rgba(189, 0, 255, 0.8), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255, 0, 170, 0.9), rgba(255, 100, 200, 0.9), transparent);
       opacity: 0.85;
-      box-shadow: 0 0 8px rgba(0, 245, 255, 0.4);
+      box-shadow: 0 0 8px rgba(255, 0, 170, 0.5);
     }
     .start-sub {
       font-size: 0.85rem;
@@ -589,16 +589,16 @@ const SKINS = [
   },
   {
     id: 4, name: '🤍 墨汁 × 銀世界',
-    fluidA: '#4a5568', fluidB: '#1a202c',
-    crystalA: '#e2e8f0', crystalB: '#cbd5e1',
-    glow: '#a0aec0', bgA: '#050508', bgB: '#101015', accent: '#a0aec0',
+    fluidA: '#ff55cc', fluidB: '#cc0088',  // 流体：ピンク
+    crystalA: '#e2e8f0', crystalB: '#cbd5e1', // 結晶：シルバーのまま
+    glow: '#ff55cc', bgA: '#050508', bgB: '#101015', accent: '#ff55cc',
     soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
   },
   {
     id: 5, name: '🌸 シャイニーピンク',
-    fluidA: '#ff007f', fluidB: '#ff66b2',
+    fluidA: '#ff70c8', fluidB: '#ff30a0',  // G=112 入りのピンク（半透明でも赤く見えない）
     crystalA: '#ffcde6', crystalB: '#ffffff',
-    glow: '#ff007f', bgA: '#0c0006', bgB: '#240012', accent: '#ff007f',
+    glow: '#ff70c8', bgA: '#08000f', bgB: '#18002a', accent: '#ff70c8',
     soundFreq: 639, // ソルフェジオ 639Hz (愛・調和・人間関係の修復)
   },
 ];
@@ -615,14 +615,15 @@ const BLOOM_PALETTES = [
   { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
   { id: 4, name: '🔥 サンセット',        hueShift: 1.2, hueMin:  10,  hueMax:  55,  sat: 95, lit: 62 },
   { id: 5, name: '💜 ブルーパープル',    hueShift: 0.8, hueMin: 245,  hueMax: 285,  sat: 85, lit: 60 },
+  { id: 6, name: '🌸 シャイニーピンク',  hueShift: 1.0, hueMin: 305,  hueMax: 345,  sat: 95, lit: 65 },
 ];
 
 /* ============================================================
    ゲーム状態
 ============================================================ */
 const STATE = {
-  skinId: 5,         // デフォルトを新スキン「シャイニーピンク」に変更
-  bloomPaletteId: 5, // デフォルトを新Bloomカラー「ブルーパープル」に変更
+  skinId: 4,         // デフォルト: 銀世界
+  bloomPaletteId: 5, // デフォルト: ブルーパープル
   soundEnabled: true,
   phase: 'flow',
 };
@@ -643,8 +644,8 @@ function getSkinHue(skinId) {
     case 1: return 330; // 🌸 桜 × 翡翠: サクラピンク (330)
     case 2: return 275; // 🌌 星雲 × 深宇宙: パープル〜マゼンタ
     case 3: return 35;  // ✨ 黄金 × 琥珀: ゴールド・オレンジ
-    case 4: return 200; // 🤍 墨汁 × 銀世界: シックなグレー
-    case 5: return 350; // 🌸 シャイニーピンク: ビビッドピンク (350)
+    case 4: return 315; // 🤍 墨汁 × 銀世界: ピンク流体
+    case 5: return 318; // 🌸 シャイニーピンク: ビビッドピンク (318)
     default: return 0;
   }
 }
@@ -1206,7 +1207,7 @@ function applySkin(id) {
   r.setProperty('--skin-bg-b',      skin.bgB);
   r.setProperty('--skin-accent',    skin.accent);
   try { localStorage.setItem('fc_skinId', String(id)); } catch (_) {}
-  resetGame();
+  // ※ resetGame() はここでは呼ばない。呼び出し元が状況に応じて制御する。
 }
 
 /* ============================================================
@@ -1260,6 +1261,14 @@ function buildSkinPanel() {
       document.querySelectorAll('.skin-card').forEach(c => c.classList.remove('active'));
       card.classList.add('active');
       closeSkinPanel();
+      // エンド画面（クリアオーバーレイ表示中）以外の場合のみリセット
+      const isClearShowing = document.getElementById('clearOverlay').classList.contains('show');
+      if (!isClearShowing) {
+        resetGame();
+      } else {
+        // エンド画面中はテーマだけ切り替えてそのまま維持
+        showToast(skin.name + ' に変更しました');
+      }
     });
     card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
@@ -1270,7 +1279,7 @@ function buildSkinPanel() {
 
   /* ── Bloom カラーチップを構築 ── */
   // パレットごとの代表色（プレビュー用ドット）
-  const BLOOM_DOT_COLORS = ['#ff80e0', '#3ab5f8', '#8855ee', '#3ddc84', '#ff6b3d'];
+  const BLOOM_DOT_COLORS = ['#ff80e0', '#3ab5f8', '#8855ee', '#3ddc84', '#ff6b3d', '#bb77dd', '#ff44bb'];
   const bloomGrid = document.getElementById('bloomPaletteGrid');
   bloomGrid.replaceChildren();
 
@@ -1432,9 +1441,8 @@ function initStars() {
   const starColors = [
     'rgba(255, 255, 255, ', // 純白
     'rgba(224, 242, 254, ', // 青白い星
-    'rgba(254, 240, 138, ', // 黄色い星
     'rgba(253, 244, 245, ', // 淡いピンクの星
-    'rgba(244, 63, 94, ',   // 淡い赤・ローズの星
+    'rgba(255, 182, 220, ', // ソフトピンクの星
     'rgba(192, 132, 252, '  // 淡いパープルの星
   ];
 
@@ -2703,17 +2711,13 @@ function updateSoundSettingsButton() {
   }
 }
 
-/* システム設定ボタン（リセット/終了）状態同期 */
+/* システム設定ボタン（リセット）— 常時表示 */
 function updateResetButtonState() {
   const btn = document.getElementById('btnResetSettings');
   if (!btn) return;
-  if (hasGameStarted && STATE.phase === 'flow') {
-    btn.style.display = '';
-    btn.innerText = '終了';
-    btn.setAttribute('aria-label', 'ゲームを終了してタイトルに戻る');
-  } else {
-    btn.style.display = 'none';
-  }
+  btn.style.display = '';
+  btn.innerText = '最初からリセット';
+  btn.setAttribute('aria-label', 'ゲームを最初からリセット');
 }
 
 document.getElementById('btnSoundSettings').addEventListener('click', () => {
@@ -2732,12 +2736,19 @@ document.getElementById('btnSoundSettings').addEventListener('click', () => {
 updateSoundSettingsButton();
 
 document.getElementById('btnResetSettings').addEventListener('click', () => {
+  /* localStorage をクリアしてデフォルト設定に戻す */
+  try { localStorage.removeItem('fc_skinId'); } catch (_) {}
+  try { localStorage.removeItem('fc_bloomPaletteId'); } catch (_) {}
+  try { localStorage.removeItem('fc_sound'); } catch (_) {}
+  STATE.skinId = 4;         // 銀世界
+  STATE.bloomPaletteId = 5; // ブルーパープル
+  STATE.soundEnabled = true;
+  applySkin(STATE.skinId);
+  buildSkinPanel();
+  updateSoundSettingsButton();
   closeSkinPanel();
-  if (hasGameStarted && STATE.phase === 'flow') {
-    exitGame();
-  } else {
-    resetGame();
-  }
+  resetGame(); // リセット時はゲームを最初から開始
+  showToast('設定をリセットしました');
 });
 document.getElementById('clearRestart').addEventListener('click', resetGame);
 
@@ -2795,6 +2806,7 @@ window.addEventListener('load', () => {
 
   initReadyRing();  /* リングSVGを先に構築してからスキン適用 */
   applySkin(STATE.skinId);
+  resetGame();  /* 初回ロード時のみ明示的に呼ぶ */
 
   setTimeout(() => {
     const loader = document.getElementById('loader');
