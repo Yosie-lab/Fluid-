@@ -568,9 +568,9 @@ const SKINS = [
   },
   {
     id: 1, name: '🌸 桜 × 翡翠',
-    fluidA: '#ff80b0', fluidB: '#ffb3d1',
+    fluidA: '#ffd5e0', fluidB: '#fff0f3',
     crystalA: '#50fa7b', crystalB: '#a8ffb8',
-    glow: '#ff80b0', bgA: '#080008', bgB: '#180010', accent: '#ff80b0',
+    glow: '#ffd5e0', bgA: '#080008', bgB: '#180010', accent: '#ffd5e0',
     soundFreq: 639, // ソルフェジオ 639Hz (愛・調和・人間関係の修復)
   },
   {
@@ -596,9 +596,9 @@ const SKINS = [
   },
   {
     id: 5, name: '🌸 シャイニーピンク',
-    fluidA: '#ffbce1', fluidB: '#ff85c2',
+    fluidA: '#ff007f', fluidB: '#ff66b2',
     crystalA: '#ffcde6', crystalB: '#ffffff',
-    glow: '#ffbce1', bgA: '#0c0006', bgB: '#240012', accent: '#ff4da6',
+    glow: '#ff007f', bgA: '#0c0006', bgB: '#240012', accent: '#ff007f',
     soundFreq: 639, // ソルフェジオ 639Hz (愛・調和・人間関係の修復)
   },
 ];
@@ -640,11 +640,11 @@ let stars = [];
 function getSkinHue(skinId) {
   switch (skinId) {
     case 0: return 195; // 水 × クリスタル: シアン
-    case 1: return 335; // 🌸 桜 × 翡翠: サクラピンク
+    case 1: return 330; // 🌸 桜 × 翡翠: サクラピンク (330)
     case 2: return 275; // 🌌 星雲 × 深宇宙: パープル〜マゼンタ
     case 3: return 35;  // ✨ 黄金 × 琥珀: ゴールド・オレンジ
     case 4: return 200; // 🤍 墨汁 × 銀世界: シックなグレー
-    case 5: return 345; // 🌸 シャイニーピンク: 純ピンク色（桜より赤みを抑え、さらにキュートなマゼンタ寄りの明るいピンク）
+    case 5: return 350; // 🌸 シャイニーピンク: ビビッドピンク (350)
     default: return 0;
   }
 }
