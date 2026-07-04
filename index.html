@@ -389,10 +389,10 @@
     .loader-ring {
       width: 32px; height: 32px;
       border-radius: 50%;
-      border: 1.5px solid rgba(255,0,170,0.15);
-      border-top-color: #ff00aa;
+      border: 1.5px solid rgba(255,255,255,0.1);
+      border-top-color: var(--skin-accent);
       animation: spin 0.9s linear infinite;
-      box-shadow: 0 0 14px #ff00aa66;
+      box-shadow: 0 0 14px var(--skin-glow);
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -449,9 +449,9 @@
     .logo-line {
       width: 48px;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 0, 170, 0.9), rgba(255, 100, 200, 0.9), transparent);
+      background: linear-gradient(90deg, transparent, var(--skin-accent), var(--skin-fluid-a), transparent);
       opacity: 0.85;
-      box-shadow: 0 0 8px rgba(255, 0, 170, 0.5);
+      box-shadow: 0 0 8px var(--skin-glow);
     }
     .start-sub {
       font-size: 0.85rem;
@@ -589,9 +589,9 @@ const SKINS = [
   },
   {
     id: 4, name: '🤍 墨汁 × 銀世界',
-    fluidA: '#c8dff8', fluidB: '#8ab4e0',  // 流体：青白い白銀
+    fluidA: '#f0f5fa', fluidB: '#b8cbd8',  // 流体：青白い白銀
     crystalA: '#e2e8f0', crystalB: '#cbd5e1', // 結晶：シルバーのまま
-    glow: '#a8c8f0', bgA: '#050508', bgB: '#101015', accent: '#a8c8f0',
+    glow: '#e0ebf5', bgA: '#050508', bgB: '#101015', accent: '#e0ebf5',
     soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
   },
   {
