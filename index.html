@@ -611,7 +611,7 @@ const SKINS = [
 const BLOOM_PALETTES = [
   { id: 0, name: '🌈 レインボー',        hueShift: 4.5, hueMin: 80,   hueMax: 350,  sat: 85, lit: 61 },
   { id: 1, name: '💙 ディープオーシャン', hueShift: 0.8, hueMin: 190,  hueMax: 230,  sat: 80, lit: 58 },
-  { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.6, hueMin: 215,  hueMax: 245,  sat: 80, lit: 78 },
+  { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.6, hueMin: 215,  hueMax: 245,  sat: 98, lit: 56 },
   { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
   { id: 4, name: '🔥 サンセット',        hueShift: 1.2, hueMin:  10,  hueMax:  55,  sat: 95, lit: 62 },
   { id: 5, name: '💜 ブルーパープル',    hueShift: 0.8, hueMin: 245,  hueMax: 285,  sat: 85, lit: 60 },
@@ -2315,6 +2315,15 @@ function drawCrystals(t, skin) {
         // 指定範囲内で振動（hueMin〜hueMax）
         const _range = _bPal.hueMax - _bPal.hueMin;
         cellHue = _bPal.hueMin + ((cell.idx * _bPal.hueShift + comboBonus * 0.5) % _range);
+        
+        // レインボー(id:0)の場合、紺色(225度)の領域を増やすために引き寄せ補正
+        if (_bPal.id === 0) {
+          const targetHue = 225;
+          let diff = targetHue - cellHue;
+          if (diff > 180) diff -= 360;
+          if (diff < -180) diff += 360;
+          cellHue = (cellHue + diff * 0.38 + 360) % 360;
+        }
       } else {
         // レインボー: baseHue 起点で全色相回転
         cellHue = (baseHue + cell.idx * _bPal.hueShift + comboBonus) % 360;
@@ -2375,6 +2384,15 @@ function createNucleusCache(nucleus, skin) {
     if (_bPalC.hueMin !== null) {
       const _rangeC = _bPalC.hueMax - _bPalC.hueMin;
       cellHue = _bPalC.hueMin + ((cell.idx * _bPalC.hueShift + (cell.combo ? cell.combo * 2.5 : 0)) % _rangeC);
+      
+      // レインボー(id:0)の場合、紺色(225度)の領域を増やすために引き寄せ補正
+      if (_bPalC.id === 0) {
+        const targetHue = 225;
+        let diff = targetHue - cellHue;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        cellHue = (cellHue + diff * 0.38 + 360) % 360;
+      }
     } else {
       cellHue = (baseHue + cell.idx * _bPalC.hueShift + (cell.combo ? cell.combo * 5 : 0)) % 360;
     }
