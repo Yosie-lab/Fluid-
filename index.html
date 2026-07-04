@@ -594,6 +594,13 @@ const SKINS = [
     glow: '#a0aec0', bgA: '#050508', bgB: '#101015', accent: '#a0aec0',
     soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
   },
+  {
+    id: 5, name: '🌸 シャイニーピンク',
+    fluidA: '#ff73b9', fluidB: '#ff2a85',
+    crystalA: '#ffb3d1', crystalB: '#ffffff',
+    glow: '#ff73b9', bgA: '#0c0006', bgB: '#240012', accent: '#ff4da6',
+    soundFreq: 639, // ソルフェジオ 639Hz (愛・調和・人間関係の修復)
+  },
 ];
 
 /* ============================================================
@@ -607,14 +614,15 @@ const BLOOM_PALETTES = [
   { id: 2, name: '🌙 ミッドナイト',      hueShift: 0.5, hueMin: 265,  hueMax: 305,  sat: 75, lit: 55 },
   { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
   { id: 4, name: '🔥 サンセット',        hueShift: 1.2, hueMin:  10,  hueMax:  55,  sat: 95, lit: 62 },
+  { id: 5, name: '💜 ブルーパープル',    hueShift: 0.8, hueMin: 245,  hueMax: 285,  sat: 85, lit: 60 },
 ];
 
 /* ============================================================
    ゲーム状態
 ============================================================ */
 const STATE = {
-  skinId: 0,
-  bloomPaletteId: 0, // Bloom カラーパターン選択 (0=レインボー)
+  skinId: 5,         // デフォルトを新スキン「シャイニーピンク」に変更
+  bloomPaletteId: 5, // デフォルトを新Bloomカラー「ブルーパープル」に変更
   soundEnabled: true,
   phase: 'flow',
 };
@@ -636,6 +644,7 @@ function getSkinHue(skinId) {
     case 2: return 275; // 星雲: 神秘的なパープル〜マゼンタ
     case 3: return 335; // 桜: 鮮やかなサクラピンク〜スプリンググリーン
     case 4: return 50;  // 雷: エレクトリックイエロー〜エメラルド
+    case 5: return 335; // シャイニーピンク: 綺麗なピンク
     default: return 0;
   }
 }
