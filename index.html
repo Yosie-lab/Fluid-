@@ -569,11 +569,11 @@ const SKINS = [
     soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
   },
   {
-    id: 1, name: '💧 水 × クリスタル',
-    fluidA: '#00f5ff', fluidB: '#0080ff',
-    crystalA: '#e0f8ff', crystalB: '#a8e6ff',
-    glow: '#00f5ff', bgA: '#000510', bgB: '#001830', accent: '#00d4ff',
-    soundFreq: 528, // ソルフェジオ 528Hz (奇跡・DNA修復)
+    id: 1, name: '🌍 ブルー × 大気圏',
+    fluidA: '#70aaff', fluidB: '#0022cc',  // 流体：緑っぽさを除いた明るい青白とディープブルー
+    crystalA: '#d0e0ff', crystalB: '#ffffff', // 結晶：大気のホワイトブルー
+    glow: '#b0d0ff', bgA: '#010308', bgB: '#001133', accent: '#b0d0ff',
+    soundFreq: 852, // ソルフェジオ 852Hz (直感の覚醒・インスピレーション)
   },
   {
     id: 2, name: '🌸 桜 × 翡翠',
@@ -590,11 +590,11 @@ const SKINS = [
     soundFreq: 963, // ソルフェジオ 963Hz (宇宙とのつながり・高次元の活性化)
   },
   {
-    id: 4, name: '🌍 ブルー × 大気圏',
-    fluidA: '#70aaff', fluidB: '#0022cc',  // 流体：緑っぽさを除いた明るい青白とディープブルー
-    crystalA: '#d0e0ff', crystalB: '#ffffff', // 結晶：大気のホワイトブルー
-    glow: '#b0d0ff', bgA: '#010308', bgB: '#001133', accent: '#b0d0ff',
-    soundFreq: 852, // ソルフェジオ 852Hz (直感の覚醒・インスピレーション)
+    id: 4, name: '💧 水 × クリスタル',
+    fluidA: '#00f5ff', fluidB: '#0080ff',
+    crystalA: '#e0f8ff', crystalB: '#a8e6ff',
+    glow: '#00f5ff', bgA: '#000510', bgB: '#001830', accent: '#00d4ff',
+    soundFreq: 528, // ソルフェジオ 528Hz (奇跡・DNA修復)
   },
   {
     id: 5, name: '✨ 黄金 × 琥珀',
@@ -650,10 +650,10 @@ let stars = [];
 function getSkinHue(skinId) {
   switch (skinId) {
     case 0: return 210; // 🤍 白銀 × 銀世界: 青白い白銀
-    case 1: return 195; // 💧 水 × クリスタル: シアン
+    case 1: return 225; // 🌍 ブルー × 大気圏: 地球の大気の青
     case 2: return 330; // 🌸 桜 × 翡翠: サクラピンク (330)
     case 3: return 275; // 🌌 星雲 × 深宇宙: パープル〜マゼンタ
-    case 4: return 225; // 🌍 ブルー × 大気圏: 地球の大気の青
+    case 4: return 195; // 💧 水 × クリスタル: シアン
     case 5: return 35;  // ✨ 黄金 × 琥珀: ゴールド・オレンジ
     case 6: return 318; // 🌸 シャイニーピンク: ビビッドピンク (318)
     default: return 0;
