@@ -588,7 +588,7 @@ const SKINS = [
     soundFreq: 852, // ソルフェジオ 852Hz (直感の覚醒・インスピレーション)
   },
   {
-    id: 4, name: '🤍 墨汁 × 銀世界',
+    id: 4, name: '🤍 白銀 × 銀世界',
     fluidA: '#f0f5fa', fluidB: '#b8cbd8',  // 流体：青白い白銀
     crystalA: '#e2e8f0', crystalB: '#cbd5e1', // 結晶：シルバーのまま
     glow: '#e0ebf5', bgA: '#050508', bgB: '#101015', accent: '#e0ebf5',
@@ -596,9 +596,9 @@ const SKINS = [
   },
   {
     id: 5, name: '🌸 シャイニーピンク',
-    fluidA: '#ff40b0', fluidB: '#ff007f',  // よりビビッドで純粋なピンク
+    fluidA: '#ff40d0', fluidB: '#b000ff',  // ピンクに少し紫を混ぜた美しいブレンド
     crystalA: '#ffcde6', crystalB: '#ffffff',
-    glow: '#ff40b0', bgA: '#08000f', bgB: '#18002a', accent: '#ff40b0',
+    glow: '#ff40d0', bgA: '#08000f', bgB: '#18002a', accent: '#ff40d0',
     soundFreq: 639, // ソルフェジオ 639Hz (愛・調和・人間関係の修復)
   },
 ];
@@ -615,7 +615,7 @@ const BLOOM_PALETTES = [
   { id: 3, name: '🌿 フォレスト',        hueShift: 0.6, hueMin: 140,  hueMax: 175,  sat: 82, lit: 56 },
   { id: 4, name: '🔥 サンセット',        hueShift: 1.2, hueMin:  10,  hueMax:  55,  sat: 95, lit: 62 },
   { id: 5, name: '💜 ブルーパープル',    hueShift: 0.8, hueMin: 245,  hueMax: 285,  sat: 85, lit: 60 },
-  { id: 6, name: '🌸 シャイニーピンク',  hueShift: 1.0, hueMin: 312,  hueMax: 340,  sat: 98, lit: 62 },
+  { id: 6, name: '🌸 シャイニーピンク',  hueShift: 1.0, hueMin: 295,  hueMax: 340,  sat: 98, lit: 62 },
 ];
 
 /* ============================================================
@@ -644,7 +644,7 @@ function getSkinHue(skinId) {
     case 1: return 330; // 🌸 桜 × 翡翠: サクラピンク (330)
     case 2: return 275; // 🌌 星雲 × 深宇宙: パープル〜マゼンタ
     case 3: return 35;  // ✨ 黄金 × 琥珀: ゴールド・オレンジ
-    case 4: return 210; // 🤍 墨汁 × 銀世界: 青白い白銀
+    case 4: return 210; // 🤍 白銀 × 銀世界: 青白い白銀
     case 5: return 318; // 🌸 シャイニーピンク: ビビッドピンク (318)
     default: return 0;
   }
