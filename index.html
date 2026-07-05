@@ -524,7 +524,7 @@
   <p class="panel-title" style="margin-top:20px;">システム設定</p>
   <div class="settings-sys-row">
     <button class="settings-sys-btn" id="btnSoundSettings" aria-label="サウンドオンオフ">サウンド: ON</button>
-    <button class="settings-sys-btn" id="btnResetSettings" aria-label="ゲームを最初からリセット">最初からリセット</button>
+    <button class="settings-sys-btn" id="btnResetSettings" aria-label="設定を閉じてゲームを再開する">再開</button>
   </div>
 </div>
 
@@ -1265,7 +1265,6 @@ function buildSkinPanel() {
       applySkin(idx);
       document.querySelectorAll('.skin-card').forEach(c => c.classList.remove('active'));
       card.classList.add('active');
-      closeSkinPanel();
       showToast(skin.name + ' に変更しました');
     });
     card.addEventListener('keydown', e => {
@@ -2732,8 +2731,8 @@ function updateResetButtonState() {
   const btn = document.getElementById('btnResetSettings');
   if (!btn) return;
   btn.style.display = '';
-  btn.innerText = '最初からリセット';
-  btn.setAttribute('aria-label', 'ゲームを最初からリセット');
+  btn.innerText = '再開';
+  btn.setAttribute('aria-label', '設定を閉じてゲームを再開する');
 }
 
 document.getElementById('btnSoundSettings').addEventListener('click', () => {
@@ -2752,19 +2751,7 @@ document.getElementById('btnSoundSettings').addEventListener('click', () => {
 updateSoundSettingsButton();
 
 document.getElementById('btnResetSettings').addEventListener('click', () => {
-  /* localStorage をクリアしてデフォルト設定に戻す */
-  try { localStorage.removeItem('fc_skinId'); } catch (_) {}
-  try { localStorage.removeItem('fc_bloomPaletteId'); } catch (_) {}
-  try { localStorage.removeItem('fc_sound'); } catch (_) {}
-  STATE.skinId = 0;         // 白銀 × 銀世界
-  STATE.bloomPaletteId = 5; // ブルーパープル
-  STATE.soundEnabled = true;
-  applySkin(STATE.skinId);
-  buildSkinPanel();
-  updateSoundSettingsButton();
   closeSkinPanel();
-  resetGame(); // リセット時はゲームを最初から開始
-  showToast('設定をリセットしました');
 });
 document.getElementById('clearRestart').addEventListener('click', resetGame);
 
