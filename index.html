@@ -268,8 +268,8 @@
       transform: translateY(-1px);
     }
     .bloom-chip.active {
-      border-color: var(--skin-accent);
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.15), 0 0 8px var(--skin-accent);
+      border-color: var(--chip-color, #ffffff);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.15), 0 0 8px var(--chip-color, rgba(255,255,255,0.4));
       background: rgba(255,255,255,0.12);
       color: #ffffff;
       font-weight: 400;
@@ -1297,6 +1297,7 @@ function buildSkinPanel() {
     chip.setAttribute('aria-pressed', String(idx === STATE.bloomPaletteId));
     chip.setAttribute('aria-label', pal.name);
     chip.dataset.bloomId = String(idx);
+    chip.style.setProperty('--chip-color', BLOOM_DOT_COLORS[idx]);
 
     const dot = document.createElement('span');
     dot.className = 'bloom-dot';
