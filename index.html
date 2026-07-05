@@ -560,39 +560,39 @@
 ============================================================ */
 const SKINS = [
   {
-    id: 0, name: '💧 水 × クリスタル',
+    id: 0, name: '🤍 白銀 × 銀世界',
+    fluidA: '#f0f5fa', fluidB: '#b8cbd8',  // 流体：青白い白銀
+    crystalA: '#e2e8f0', crystalB: '#cbd5e1', // 結晶：シルバーのまま
+    glow: '#e0ebf5', bgA: '#050508', bgB: '#101015', accent: '#e0ebf5',
+    soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
+  },
+  {
+    id: 1, name: '💧 水 × クリスタル',
     fluidA: '#00f5ff', fluidB: '#0080ff',
     crystalA: '#e0f8ff', crystalB: '#a8e6ff',
     glow: '#00f5ff', bgA: '#000510', bgB: '#001830', accent: '#00d4ff',
     soundFreq: 528, // ソルフェジオ 528Hz (奇跡・DNA修復)
   },
   {
-    id: 1, name: '🌸 桜 × 翡翠',
+    id: 2, name: '🌸 桜 × 翡翠',
     fluidA: '#ffd5e0', fluidB: '#fff0f3',
     crystalA: '#50fa7b', crystalB: '#a8ffb8',
     glow: '#ffd5e0', bgA: '#080008', bgB: '#180010', accent: '#ffd5e0',
     soundFreq: 639, // ソルフェジオ 639Hz (愛・調和・人間関係の修復)
   },
   {
-    id: 2, name: '🌌 星雲 × 深宇宙',
+    id: 3, name: '🌌 星雲 × 深宇宙',
     fluidA: '#9d50ff', fluidB: '#4f0aff',
     crystalA: '#ffe066', crystalB: '#ffffff',
     glow: '#9d50ff', bgA: '#02000f', bgB: '#0a0030', accent: '#bb86fc',
     soundFreq: 963, // ソルフェジオ 963Hz (宇宙とのつながり・高次元の活性化)
   },
   {
-    id: 3, name: '✨ 黄金 × 琥珀',
+    id: 4, name: '✨ 黄金 × 琥珀',
     fluidA: '#fff700', fluidB: '#ffd700',
     crystalA: '#ffb85c', crystalB: '#ff6f00',
     glow: '#fff700', bgA: '#080500', bgB: '#1a1000', accent: '#ffd700',
     soundFreq: 852, // ソルフェジオ 852Hz (直感の覚醒・インスピレーション)
-  },
-  {
-    id: 4, name: '🤍 白銀 × 銀世界',
-    fluidA: '#f0f5fa', fluidB: '#b8cbd8',  // 流体：青白い白銀
-    crystalA: '#e2e8f0', crystalB: '#cbd5e1', // 結晶：シルバーのまま
-    glow: '#e0ebf5', bgA: '#050508', bgB: '#101015', accent: '#e0ebf5',
-    soundFreq: 264, // ソルフェジオ 528Hzの1オクターブ下 (恐怖からの解放・グラウンディング)
   },
   {
     id: 5, name: '🌸 シャイニーピンク',
@@ -622,7 +622,7 @@ const BLOOM_PALETTES = [
    ゲーム状態
 ============================================================ */
 const STATE = {
-  skinId: 4,         // デフォルト: 銀世界
+  skinId: 0,         // デフォルト: 白銀 × 銀世界
   bloomPaletteId: 5, // デフォルト: ブルーパープル
   soundEnabled: true,
   phase: 'flow',
@@ -640,11 +640,11 @@ let stars = [];
 /* スキンごとのベース色相（HSL）を返す関数（XSS安全な定数定義） */
 function getSkinHue(skinId) {
   switch (skinId) {
-    case 0: return 195; // 水 × クリスタル: シアン
-    case 1: return 330; // 🌸 桜 × 翡翠: サクラピンク (330)
-    case 2: return 275; // 🌌 星雲 × 深宇宙: パープル〜マゼンタ
-    case 3: return 35;  // ✨ 黄金 × 琥珀: ゴールド・オレンジ
-    case 4: return 210; // 🤍 白銀 × 銀世界: 青白い白銀
+    case 0: return 210; // 🤍 白銀 × 銀世界: 青白い白銀
+    case 1: return 195; // 水 × クリスタル: シアン
+    case 2: return 330; // 🌸 桜 × 翡翠: サクラピンク (330)
+    case 3: return 275; // 🌌 星雲 × 深宇宙: パープル〜マゼンタ
+    case 4: return 35;  // ✨ 黄金 × 琥珀: ゴールド・オレンジ
     case 5: return 318; // 🌸 シャイニーピンク: ビビッドピンク (318)
     default: return 0;
   }
@@ -2756,7 +2756,7 @@ document.getElementById('btnResetSettings').addEventListener('click', () => {
   try { localStorage.removeItem('fc_skinId'); } catch (_) {}
   try { localStorage.removeItem('fc_bloomPaletteId'); } catch (_) {}
   try { localStorage.removeItem('fc_sound'); } catch (_) {}
-  STATE.skinId = 4;         // 銀世界
+  STATE.skinId = 0;         // 白銀 × 銀世界
   STATE.bloomPaletteId = 5; // ブルーパープル
   STATE.soundEnabled = true;
   applySkin(STATE.skinId);
