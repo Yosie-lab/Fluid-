@@ -912,7 +912,12 @@ function unlockAudio() {
     
     if (audioCtx) {
       // suspended / interrupted（iOS固有）の場合は resume() を試みる
+      // suspended / interrupted（iOS固有）の場合は resume() を試みる
       if (audioCtx.state !== 'running') {
+        // 同期的にも即座に発音ノードの生成を走らせる（Chrome / 旧Safari対策）
+        pregenerateCarbonatedBuffer();
+        startAmbientSolfeggio();
+
         audioCtx.resume().then(() => {
           pregenerateCarbonatedBuffer();
           startAmbientSolfeggio();
@@ -3297,11 +3302,14 @@ window.addEventListener('load', () => {
       startReadyRing();
     };
 
-    startOverlay.addEventListener('click', handleStart);
+    // Chrome / Safari (iOS) での確実なアンロックを狙う
     startOverlay.addEventListener('touchstart', (e) => {
+      // Chrome (iOS) では重複タップ防止と音声アンロックのため、ここでイベントを確定させる
+      e.preventDefault();
       handleStart();
-    });
-    startOverlay.addEventListener('touchend', (e) => {
+    }, { passive: false });
+
+    startOverlay.addEventListener('click', (e) => {
       handleStart();
     });
   }
