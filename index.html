@@ -867,38 +867,46 @@ function updateSolfeggioFrequencies() {
 
 
 /* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
+/* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
+let isAudioUnlocked = false;
+
 function unlockAudio() {
-  const ctx = getAudioCtx();
+  if (isAudioUnlocked) return;
+
+  // 1. 同期的イベントハンドラ内で初めて AudioContext をインスタンス化する（これより前だとブロックされる）
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const ctx = audioCtx;
   if (!ctx) return;
 
-  // 1. 同期的コールスタック内でまずダミー音を再生
+  // 2. 同期的コールスタック内で無音のダミー音を即座に生成して再生
   playDummySound(ctx);
 
-  // 2. 非同期の.thenを待たず、同期的コールスタック内で直接アンビエント音を再生開始（オシレーター接続）
-  // これにより、ユーザーのタップと完全に同期した処理とiOSブラウザが判定します
+  // 3. 非同期の.thenを一切挟まず、同一の同期的スコープ内で直接アンビエント音（オシレーター）を生成して接続する
   startAmbientSolfeggio();
 
-  // 3. 同時に音声コンテキストのレジュームをキック
-  ctx.resume().then(() => {
-    // 成功したらアンロック用リスナーを解除
-    removeUnlockListeners();
-  }).catch(err => {
-    console.warn("Audio Context Resume Failed:", err);
-  });
+  // 4. 同期的に resume() を呼び出してコンテキストを稼働状態にする
+  try {
+    ctx.resume();
+  } catch (e) {
+    console.warn("Direct resume failed, using fallback:", e);
+  }
+
+  isAudioUnlocked = true;
+  removeUnlockListeners();
 }
 
 function playDummySound(ctx) {
   try {
-    // 時間指定のスケジューリングを使わず、直接オシレーターを立ち上げて即座に start / stop する
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.value = 440;
-    gain.gain.value = 0.00001; // 耳に聞こえない極微小音量
+    osc.frequency.value = 220;
+    gain.gain.value = 0.000001; 
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(0);
-    // iOS Safariでは直接同期的に stop して問題ない
     osc.stop(0.01);
   } catch (e) {}
 }
