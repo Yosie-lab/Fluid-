@@ -712,7 +712,8 @@ function getSkinHue(skinId) {
 let audioCtx = null;
 
 function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // ★iOS対策: ユーザー操作前に AudioContext を自動生成しない。
+  // 生成は unlockAudio() の中だけで行う。
   return audioCtx;
 }
 
@@ -724,7 +725,8 @@ let solfeggioFilterNode = null;
 /* 528Hzを主音とする美しい「ド・ミ・ソ・シ・レ (Cmaj9)」コーラス環境音の開始（ピンポンディレイ回路） */
 function startAmbientSolfeggio() {
   if (!STATE.soundEnabled || solfeggioOscs.length > 0) return;
-  const ctx = getAudioCtx();
+  // ★iOS対策: getAudioCtx()を呼ばず、直接グローバルのaudioCtxを参照する
+  const ctx = audioCtx;
   if (!ctx || ctx.state !== 'running') return;
 
   const now = ctx.currentTime;
@@ -996,7 +998,7 @@ function startFlowNoise() {
 
 function stopFlowNoise() {
   if (!flowNoiseActive || !flowNoiseGain) return;
-  const ctx = getAudioCtx();
+  const ctx = audioCtx;
   if (!ctx || ctx.state !== 'running') {
     flowNoiseActive = false;
     return;
@@ -1010,7 +1012,7 @@ function stopFlowNoise() {
 /* 流体が吸い込まれるときの心地よい音（以前の温かいエネルギー感に戻す） */
 function playAbsorbSound(freq) {
   if (!STATE.soundEnabled) return;
-  const ctx  = getAudioCtx();
+  const ctx = audioCtx;
   if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない
 
   const osc  = ctx.createOscillator();
@@ -1042,7 +1044,7 @@ function playAbsorbSound(freq) {
 /* 3つ目の結晶開花時の「煌めきのチャイム音」（高音のアルペジオ） */
 function playChimeSound() {
   if (!STATE.soundEnabled) return;
-  const ctx = getAudioCtx();
+  const ctx = audioCtx;
   if (!ctx || ctx.state !== 'running') return;
 
   const now = ctx.currentTime;
@@ -1084,7 +1086,7 @@ function playChimeSound() {
 /* クリア時の美しい和音 */
 function playClearChord() {
   if (!STATE.soundEnabled) return;
-  const ctx  = getAudioCtx();
+  const ctx = audioCtx;
   if (!ctx || ctx.state !== 'running') return; // アンロックされるまでは何もしない
 
   const base = SKINS[STATE.skinId].soundFreq;
@@ -1103,7 +1105,7 @@ function playClearChord() {
 /* クリア時の炭酸音（さらに小さく調整、かつリバーブ対応） */
 function playCarbonatedSound(originX) {
   if (!STATE.soundEnabled) return;
-  const ctx = getAudioCtx();
+  const ctx = audioCtx;
   if (!ctx) return;
 
   if (ctx.state !== 'running') {
@@ -1888,7 +1890,8 @@ let carbonatedBufferCache = null;
 
 // 脳リフレクソから移植した炭酸音バッファの事前生成
 function pregenerateCarbonatedBuffer() {
-  const ctx = getAudioCtx();
+  // ★iOS対策: getAudioCtx()を呼ばず、直接グローバルのaudioCtxを参照する
+  const ctx = audioCtx;
   if (carbonatedBufferCache || !ctx) return;
   
   try {
