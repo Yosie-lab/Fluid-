@@ -925,6 +925,15 @@ function updateSolfeggioFrequencies() {
    もし音声コンテキストが停止(suspended)していれば常に同期的に resume を試みる。 */
 function unlockAudio() {
   try {
+    // ★Chrome (iOS) 対策: 物理ボタンをタッチした直下の第一階層コールスタックで、
+    // HTML5 Audio要素を作成して同期再生し、スピーカーを強制開放する
+    try {
+      const audio = new Audio();
+      audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAARKwAARKwAAAEAAgAZAAAATUFOWQAAAAADAAgAZGF0YQgAAAAAAAAA';
+      audio.volume = 0.0001; // 耳に聞こえない極微小音量
+      audio.play().catch(() => {});
+    } catch (_) {}
+
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (audioCtx && audioCtx.state === 'closed') {
       audioCtx = null;
