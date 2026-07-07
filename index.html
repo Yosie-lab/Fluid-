@@ -479,27 +479,53 @@
     .start-btn-premium {
       font-family: 'Outfit', sans-serif;
       font-size: 1.1rem;
-      font-weight: 300;
+      font-weight: 400;
       letter-spacing: 0.35em;
-      color: rgba(224, 242, 254, 0.95);
-      border: 1px solid rgba(0, 245, 255, 0.35);
-      padding: 16px 52px;
+      color: #ffffff;
+      border: none;
+      padding: 16px 56px;
       border-radius: 40px;
-      background: rgba(0, 5, 16, 0.65);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 0 25px rgba(0, 245, 255, 0.15), inset 0 0 15px rgba(0, 245, 255, 0.08);
+      position: relative;
+      background: linear-gradient(135deg, rgba(0, 245, 255, 0.2), rgba(192, 132, 252, 0.2));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), 
+                  inset 0 0 0 1px rgba(255, 255, 255, 0.15),
+                  0 0 15px rgba(0, 245, 255, 0.1);
       cursor: pointer;
       user-select: none;
       -webkit-user-select: none;
-      transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
       text-indent: 0.35em;
       margin-top: 10px;
+      overflow: hidden;
+    }
+    .start-btn-premium::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -150%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: all 0.6s ease;
+    }
+    .start-btn-premium:hover {
+      background: linear-gradient(135deg, rgba(0, 245, 255, 0.45), rgba(192, 132, 252, 0.45));
+      box-shadow: 0 12px 40px 0 rgba(0, 245, 255, 0.25), 
+                  0 0 30px rgba(192, 132, 252, 0.25),
+                  inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+      transform: translateY(-2px);
+      letter-spacing: 0.4em;
+      text-indent: 0.4em;
+      color: #ffffff;
+    }
+    .start-btn-premium:hover::before {
+      left: 150%;
     }
     .start-btn-premium:active {
-      background: rgba(0, 245, 255, 0.15);
-      box-shadow: 0 0 35px rgba(0, 245, 255, 0.35), inset 0 0 25px rgba(0, 245, 255, 0.2);
-      transform: scale(0.97);
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 4px 15px 0 rgba(0, 245, 255, 0.15), 
+                  inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+      transition: all 0.1s;
     }
 
   </style>
@@ -1141,9 +1167,9 @@ function playChimeSound(baseFreq) {
   if (!ctx || ctx.state !== 'running') return;
 
   const now = ctx.currentTime;
-  // 煌びやかな高音の周波数配列（baseFreqが渡された場合はそれを基準にし、なければ従来の固定周波数）
+  // 煌びやかな高音の周波数配列（baseFreqが適正な数値の場合はそれを基準にし、なければ従来の固定周波数）
   let chimeFreqs;
-  if (baseFreq) {
+  if (baseFreq && typeof baseFreq === 'number' && isFinite(baseFreq)) {
     // 結晶核の周波数を4倍してチャイム音にふさわしい高音のベースにする
     const ref = baseFreq * 4;
     chimeFreqs = [ref, ref * 1.25, ref * 1.5, ref * 1.875, ref * 2.25, ref * 2.75];
@@ -1166,7 +1192,7 @@ function playChimeSound(baseFreq) {
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    gain.gain.linearRampToValueAtTime(0.0018, now + delayTime + 0.015);
+    gain.gain.linearRampToValueAtTime(0.005, now + delayTime + 0.015);
     // すぐに消えるが、一部をディレイやリバーブへ送り込んで美しい余韻を残す
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 1.2);
 
@@ -1190,7 +1216,11 @@ function playSpecialChimeSound(baseFreq) {
   if (!ctx || ctx.state !== 'running') return;
 
   const now = ctx.currentTime;
-  const ref = (baseFreq || 300) * 4;
+  
+  let ref = 1200;
+  if (baseFreq && typeof baseFreq === 'number' && isFinite(baseFreq)) {
+    ref = baseFreq * 4;
+  }
 
   // おしゃれでゴージャスなテンションコード（メジャー9th/11thなど）の上昇＆下降アルペジオ（10音）
   const ratios = [1.0, 1.25, 1.5, 1.875, 2.25, 2.667, 3.0, 3.75, 4.5, 5.0];
@@ -1222,7 +1252,7 @@ function playSpecialChimeSound(baseFreq) {
 
     gain.gain.setValueAtTime(0, now + delayTime);
     // 音数が多く広がりがあるため、個々の音量を控えめにして透明感を出す
-    gain.gain.linearRampToValueAtTime(0.0035, now + delayTime + 0.015);
+    gain.gain.linearRampToValueAtTime(0.009, now + delayTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.5);
 
     osc.connect(filter);
