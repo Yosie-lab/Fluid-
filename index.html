@@ -1135,14 +1135,21 @@ function playAbsorbSound(freq) {
 }
 
 /* 3つ目の結晶開花時の「煌めきのチャイム音」（高音のアルペジオ） */
-function playChimeSound() {
+function playChimeSound(baseFreq) {
   if (!STATE.soundEnabled) return;
   const ctx = audioCtx;
   if (!ctx || ctx.state !== 'running') return;
 
   const now = ctx.currentTime;
-  // 煌びやかな高音の周波数配列（メジャーセブンスコードを反転）
-  const chimeFreqs = [1200, 1500, 1800, 2200, 2700, 3300];
+  // 煌びやかな高音の周波数配列（baseFreqが渡された場合はそれを基準にし、なければ従来の固定周波数）
+  let chimeFreqs;
+  if (baseFreq) {
+    // 結晶核の周波数を4倍してチャイム音にふさわしい高音のベースにする
+    const ref = baseFreq * 4;
+    chimeFreqs = [ref, ref * 1.25, ref * 1.5, ref * 1.875, ref * 2.25, ref * 2.75];
+  } else {
+    chimeFreqs = [1200, 1500, 1800, 2200, 2700, 3300];
+  }
 
   chimeFreqs.forEach((freq, idx) => {
     // わずかにディレイ（アルペジオ効果）をつけて発音
@@ -1785,6 +1792,7 @@ class CrystalNucleus {
     lastActivationTime = now;
     vibrateClear(); // 完全開花時の強めのハプティクス
     playClearChord(); // 美しいクリア和音を重ねる
+    playChimeSound(this.freq); // 結晶化してBloomするごとにチャイム音を鳴らす
 
     // 開花ボーナス（5倍に強化）：花（結晶核）の周囲から新しい流動粒子がブワッと全面に美しく大噴出する！
     // 動作が重くなるのを防ぎつつ、十分な「粒子筋」を噴出させるため上限を大幅に引き上げ（1000個）
@@ -1812,7 +1820,7 @@ class CrystalNucleus {
       // フェードインのタイミングをばらつかせることで、画面のあちこちでじわじわと光が浮かび上がるようにする
       p.fadeInSpeed = 0.003 + Math.random() * 0.018;
       
-      // 粒子のサイズも大小を大きくばらつかせ、満天の星屑のような美しさにする
+      // 粒子のサイズも大小を大きくばらつかせ、満天 of 星屑のような美しさにする
       p.r = PARTICLE_RADIUS * (0.3 + Math.random() * 2.2);
       p.life = 0.45 + Math.random() * 0.55; // 最大輝度もランダム
       
@@ -1844,10 +1852,7 @@ class CrystalNucleus {
 
     // 3つ目のbloom（全て満開）時の特別演出
     if (currentActivatedCount === crystalNuclei.length && crystalNuclei.length > 0) {
-      // 1. 煌めきのチャイムアルペジオ音を再生
-      playChimeSound();
-
-      // 2. 複数のスーパー流れ星をダイナミックに流す（最初の2本は即時）
+      // 1. 全開花時のスーパー流れ星をダイナミックに流す（最初の2本は即時）
       spawnBackgroundShootingStar(true);
       setTimeout(() => { spawnBackgroundShootingStar(true); }, 150);
 
