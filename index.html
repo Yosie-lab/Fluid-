@@ -871,14 +871,17 @@ function unlockAudio() {
   const ctx = getAudioCtx();
   if (!ctx) return;
 
-  // 1. 同期的コールスタック内でまず無音に近いダミー音を直接再生
+  // 1. 同期的コールスタック内でまずダミー音を再生
   playDummySound(ctx);
 
-  // 2. ブラウザが安全と判断するよう、同期的コールスタック内で強制的に resume() を呼び出す
+  // 2. 非同期の.thenを待たず、同期的コールスタック内で直接アンビエント音を再生開始（オシレーター接続）
+  // これにより、ユーザーのタップと完全に同期した処理とiOSブラウザが判定します
+  startAmbientSolfeggio();
+
+  // 3. 同時に音声コンテキストのレジュームをキック
   ctx.resume().then(() => {
-    // 成功したらイベントリスナーを削除し、アンビエント音を鳴らす
+    // 成功したらアンロック用リスナーを解除
     removeUnlockListeners();
-    startAmbientSolfeggio();
   }).catch(err => {
     console.warn("Audio Context Resume Failed:", err);
   });
@@ -3233,10 +3236,8 @@ window.addEventListener('load', () => {
       // サウンドのアンロックを実行
       unlockAudio();
 
-      // 起動直後のメインスレッドをブロックしないよう、2.2秒の遅延（カウントダウン中）をつけてバックグラウンドでバッファを生成
-      setTimeout(() => {
-        pregenerateCarbonatedBuffer();
-      }, 2200);
+      // iOSの制限を回避するため、遅延を挟まずユーザーのタップと同じコールスタックで直接同期生成する
+      pregenerateCarbonatedBuffer();
 
       startOverlay.classList.add('hidden');
 
