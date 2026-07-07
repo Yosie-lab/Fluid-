@@ -706,7 +706,6 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-let reverbNode = null;
 let solfeggioOscs = [];
 let solfeggioLFOs = [];
 let solfeggioNodes = [];
@@ -740,44 +739,35 @@ function startAmbientSolfeggio() {
     delayR.delayTime.setValueAtTime(0.48, now); // 480ms
     solfeggioNodes.push(delayL, delayR);
 
-    // フィードバックゲイン（心地よい持続: 0.55）
+    // フィードバックゲイン（心地よい持続: 0.62 に微増）
     const fbL = ctx.createGain();
     const fbR = ctx.createGain();
-    fbL.gain.setValueAtTime(0.55, now);
-    fbR.gain.setValueAtTime(0.55, now);
+    fbL.gain.setValueAtTime(0.62, now);
+    fbR.gain.setValueAtTime(0.62, now);
     solfeggioNodes.push(fbL, fbR);
 
-    // 交差フィードバック（ピンポン効果を最大化: 0.22）
+    // 交差フィードバック（ピンポン効果を最大化: 0.28 に微増）
     const crossL = ctx.createGain();
     const crossR = ctx.createGain();
-    crossL.gain.setValueAtTime(0.22, now);
-    crossR.gain.setValueAtTime(0.22, now);
+    crossL.gain.setValueAtTime(0.28, now);
+    crossR.gain.setValueAtTime(0.28, now);
     solfeggioNodes.push(crossL, crossR);
 
     // ミックスゲイン
     const directGain = ctx.createGain();
-    directGain.gain.setValueAtTime(0.25, now); // 直接音は控えめにして輪郭をぼかす
+    directGain.gain.setValueAtTime(0.35, now); // 直接音は控えめにして輪郭をぼかす
     solfeggioNodes.push(directGain);
 
     const revMix = ctx.createGain();
-    revMix.gain.setValueAtTime(0.95, now); // 残響を強め（95%）にミックス
+    revMix.gain.setValueAtTime(0.85, now); // 遅延反響音を85%ミックス
     solfeggioNodes.push(revMix);
 
     // 接続処理
-    // 畳み込みリバーブ（残響ノード）を取得し、アンビエント和音と贅沢に結合
-    const reverb = getReverbNode(ctx);
-    
-    // リバーブへのセンドゲイン（環境音の残響を深く心地よく調整）
-    const reverbSend = ctx.createGain();
-    reverbSend.gain.setValueAtTime(0.68, now); // 深い宇宙空間のように包み込む 68% のセンド量
-    solfeggioNodes.push(reverbSend);
-
     solfeggioGain.connect(solfeggioFilterNode);
     solfeggioFilterNode.connect(directGain);
     directGain.connect(ctx.destination);
 
-    // フィルタ音を直接リバーブへも送り、音像を心地よくぼかす
-    solfeggioFilterNode.connect(reverbSend);
+    // フィルタ音をディレイ回路へ送る
     solfeggioFilterNode.connect(delayL);
     solfeggioFilterNode.connect(delayR);
 
@@ -788,13 +778,8 @@ function startAmbientSolfeggio() {
     delayR.connect(crossR); crossR.connect(delayL);
 
     delayL.connect(revMix); delayR.connect(revMix);
-    
-    // 左右ディレイの反響音もリバーブへ送って空気中に美しく拡散
-    delayL.connect(reverbSend);
-    delayR.connect(reverbSend);
 
     revMix.connect(ctx.destination);
-    reverbSend.connect(reverb);
 
     // Cmaj9和音構成（ド・ミ・ソ・シ・レ）
     // 主音のfreqを基準として、純正律に近い比率で美しい和声を構成
@@ -879,33 +864,7 @@ function updateSolfeggioFrequencies() {
   });
 }
 
-/* 畳み込みリバーブ用インパルス応答（3.2秒の深いステレオ残響） */
-function createReverbBuffer(ctx, duration, decay) {
-  const sampleRate = ctx.sampleRate;
-  const len = sampleRate * duration;
-  const buf = ctx.createBuffer(2, len, sampleRate);
-  for (let c = 0; c < 2; c++) {
-    const data = buf.getChannelData(c);
-    let lastVal = 0;
-    for (let i = 0; i < len; i++) {
-      const white = Math.random() * 2 - 1;
-      // 【改善】金属的なキーンという共鳴（ハウリング感）を防ぐため、1次ローパスで高域を滑らかにカット
-      const lpVal = lastVal * 0.88 + white * 0.12;
-      lastVal = lpVal;
-      data[i] = lpVal * Math.pow(1 - i / len, decay);
-    }
-  }
-  return buf;
-}
 
-function getReverbNode(ctx) {
-  if (reverbNode) return reverbNode;
-  const convolver = ctx.createConvolver();
-  convolver.buffer = createReverbBuffer(ctx, 3.2, 2.0); // 3.2秒の深く心地よい残響
-  convolver.connect(ctx.destination);
-  reverbNode = convolver;
-  return reverbNode;
-}
 
 /* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
 function unlockAudio() {
@@ -1077,19 +1036,13 @@ function playChimeSound() {
     osc.connect(filter);
     filter.connect(gain);
 
-    // リバーブがすでにある場合は、リバーブへセンドして深い広がりを出す
-    const rev = getReverbNode(ctx);
-    if (rev) {
-      const revSend = ctx.createGain();
-      revSend.gain.setValueAtTime(0.48, now);
-      gain.connect(revSend);
-      revSend.connect(rev);
-    }
-
     gain.connect(ctx.destination);
 
+    // リバーブを廃止する代わりに、余韻のカーブを緩やかにして美しく残響させる
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.2);
+
     osc.start(now + delayTime);
-    osc.stop(now + delayTime + 1.2);
+    osc.stop(now + delayTime + 2.2);
   });
 }
 
