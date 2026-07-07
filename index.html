@@ -5,16 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Spacey Bloom — 宇宙と結晶の癒しゲーム</title>
   <meta name="description" content="宇宙の流動体を導き、星の結晶を咲かせる。脳を解放する究極の癒しゲーム Spacey Bloom。">
-  <script>
-    // iOSでのデバッグを容易にするためエラーを画面上にオーバーレイ表示
-    window.onerror = function(message, source, lineno, colno, error) {
-      const errDiv = document.createElement('div');
-      errDiv.style.cssText = 'position:fixed;top:10px;left:10px;width:calc(100% - 20px);max-height:300px;background:rgba(220,38,38,0.95);color:#fff;padding:15px;border-radius:10px;z-index:999999;font-family:monospace;font-size:11px;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,0.5);line-height:1.4;';
-      errDiv.innerHTML = '<strong>[JS Runtime Error]</strong><br>' + message + '<br><small>Location: ' + source + ':' + lineno + ':' + colno + '</small>' + (error && error.stack ? '<br><pre style="margin-top:5px;white-space:pre-wrap;font-size:10px;opacity:0.8;">' + error.stack + '</pre>' : '');
-      document.body.appendChild(errDiv);
-      return false;
-    };
-  </script>
   <!-- Google Fonts Outfit -->
   <!-- TODO(security): CDN依存を削減するためにフォントをローカルホスティングに移行することを検討してください -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
