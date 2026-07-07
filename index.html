@@ -797,21 +797,23 @@ function startAmbientSolfeggio() {
     reverbSend.connect(reverb);
 
     // Cmaj9和音構成（ド・ミ・ソ・シ・レ）
-    // 主音の528HzをC5（ド）として、純正律に近い比率で美しい和声を構成
+    // 主音のfreqを基準として、純正律に近い比率で美しい和声を構成
     const chord = [
-      { f: 528,   vol: 1.0,  lfoSpeed: 0.18 }, // ド (基準音 C5)
-      { f: 660,   vol: 0.8,  lfoSpeed: 0.22 }, // ミ (E5: 1.25倍)
-      { f: 792,   vol: 0.7,  lfoSpeed: 0.15 }, // ソ (G5: 1.5倍)
-      { f: 990,   vol: 0.5,  lfoSpeed: 0.26 }, // シ (B5: 1.875倍 - テンション)
-      { f: 594,   vol: 0.6,  lfoSpeed: 0.13 }, // レ (D5: 1.125倍 - オクターブ下げて中低域を支える)
+      { ratio: 1.0,   vol: 1.0,  lfoSpeed: 0.18 }, // ド (基準音)
+      { ratio: 1.25,  vol: 0.8,  lfoSpeed: 0.22 }, // ミ (1.25倍)
+      { ratio: 1.5,   vol: 0.7,  lfoSpeed: 0.15 }, // ソ (1.5倍)
+      { ratio: 1.875, vol: 0.5,  lfoSpeed: 0.26 }, // シ (1.875倍)
+      { ratio: 1.125, vol: 0.6,  lfoSpeed: 0.13 }, // レ (1.125倍)
     ];
+
+    const baseFreq = SKINS[STATE.skinId].soundFreq;
 
     chord.forEach(tone => {
       const osc = ctx.createOscillator();
       const toneGain = ctx.createGain();
       
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(tone.f, now);
+      osc.frequency.setValueAtTime(baseFreq * tone.ratio, now);
 
       // コーラス効果：各声の周波数を微小に揺らすLFO（変調周期をそれぞれずらす）
       const lfo = ctx.createOscillator();
@@ -833,7 +835,8 @@ function startAmbientSolfeggio() {
       toneGain.connect(solfeggioGain);
       osc.start(now);
       
-      solfeggioOscs.push(osc);
+      // iOSの停止・再起動によるロックを防ぐため、オシレーターノードと比率のペアを保存
+      solfeggioOscs.push({ node: osc, ratio: tone.ratio });
       solfeggioNodes.push(toneGain);
     });
 
@@ -844,8 +847,8 @@ function startAmbientSolfeggio() {
 
 /* ソルフェジオ環境音の停止 */
 function stopAmbientSolfeggio() {
-  solfeggioOscs.forEach(osc => {
-    try { osc.stop(); osc.disconnect(); } catch (_) {}
+  solfeggioOscs.forEach(item => {
+    try { item.node.stop(); item.node.disconnect(); } catch (_) {}
   });
   solfeggioOscs = [];
 
@@ -859,6 +862,21 @@ function stopAmbientSolfeggio() {
   });
   solfeggioNodes = [];
   solfeggioFilterNode = null;
+  solfeggioMasterGain = null;
+}
+
+/* スキン変更時などに、iOS音声ロックを避けるためオシレーターを止めずに周波数を滑らかにスイープ変更する */
+function updateSolfeggioFrequencies() {
+  if (!audioCtx || audioCtx.state !== 'running' || solfeggioOscs.length === 0) return;
+  const now = audioCtx.currentTime;
+  const baseFreq = SKINS[STATE.skinId].soundFreq;
+
+  solfeggioOscs.forEach(item => {
+    try {
+      // 0.8秒かけて新しい周波数に滑らかに変更（iOSの音声ロックを100%防ぎ、遷移も美しい）
+      item.node.frequency.exponentialRampToValueAtTime(baseFreq * item.ratio, now + 0.8);
+    } catch (_) {}
+  });
 }
 
 /* 畳み込みリバーブ用インパルス応答（3.2秒の深いステレオ残響） */
@@ -901,8 +919,8 @@ function unlockAudio() {
     // 1. 同期的コールスタック内でまずダミー音（オシレーター）を再生
     playDummySound(ctx);
 
-    // 2. その後、同期的コールスタック内で resume() を呼び出す
-    if (ctx.state === 'suspended') {
+    // 2. iOSのブラウザが安全と判断するよう、同期的コールスタック内で resume() を呼び出す
+    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
       ctx.resume().then(() => {
         removeUnlockListeners();
         startAmbientSolfeggio();
@@ -910,8 +928,11 @@ function unlockAudio() {
         console.error("Audio Context Resume Failed:", err);
       });
     } else {
-      removeUnlockListeners();
-      startAmbientSolfeggio();
+      // その他の状態（例：iOS Safariでバックグラウンドから復帰した時など）でも安全にresumeをフォールバック実行
+      ctx.resume().then(() => {
+        removeUnlockListeners();
+        startAmbientSolfeggio();
+      }).catch(() => {});
     }
   }
 }
@@ -3173,10 +3194,9 @@ function applyRandomTheme() {
     localStorage.setItem('fc_bloomPaletteId', String(nextBloomId));
   } catch (_) {}
 
-  // 4. 環境音の周波数がスキンによって変わるため、再起動
+  // 4. 環境音の周波数がスキンによって変わるため、オシレーターを止めずに周波数を滑らかに移行する
   if (STATE.soundEnabled) {
-    stopAmbientSolfeggio();
-    startAmbientSolfeggio();
+    updateSolfeggioFrequencies();
   }
 
   // スパーク粒子をリセット
