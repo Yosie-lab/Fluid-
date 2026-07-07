@@ -910,42 +910,34 @@ function getReverbNode(ctx) {
 /* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
 function unlockAudio() {
   const ctx = getAudioCtx();
-  if (ctx) {
-    if (ctx.state === 'running') {
-      startAmbientSolfeggio();
-      return;
-    }
+  if (!ctx) return;
 
-    // 1. 同期的コールスタック内でまずダミー音（オシレーター）を再生
-    playDummySound(ctx);
+  // 1. 同期的コールスタック内でまず無音に近いダミー音を直接再生
+  playDummySound(ctx);
 
-    // 2. iOSのブラウザが安全と判断するよう、同期的コールスタック内で resume() を呼び出す
-    if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
-      ctx.resume().then(() => {
-        removeUnlockListeners();
-        startAmbientSolfeggio();
-      }).catch(err => {
-        console.error("Audio Context Resume Failed:", err);
-      });
-    } else {
-      // その他の状態（例：iOS Safariでバックグラウンドから復帰した時など）でも安全にresumeをフォールバック実行
-      ctx.resume().then(() => {
-        removeUnlockListeners();
-        startAmbientSolfeggio();
-      }).catch(() => {});
-    }
-  }
+  // 2. ブラウザが安全と判断するよう、同期的コールスタック内で強制的に resume() を呼び出す
+  ctx.resume().then(() => {
+    // 成功したらイベントリスナーを削除し、アンビエント音を鳴らす
+    removeUnlockListeners();
+    startAmbientSolfeggio();
+  }).catch(err => {
+    console.warn("Audio Context Resume Failed:", err);
+  });
 }
 
 function playDummySound(ctx) {
   try {
+    // 時間指定のスケジューリングを使わず、直接オシレーターを立ち上げて即座に start / stop する
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    gain.gain.value = 0.00001; // 耳に聞こえない極微小音量
     osc.connect(gain);
     gain.connect(ctx.destination);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
     osc.start(0);
-    osc.stop(ctx.currentTime + 0.05);
+    // iOS Safariでは直接同期的に stop して問題ない
+    osc.stop(0.01);
   } catch (e) {}
 }
 
