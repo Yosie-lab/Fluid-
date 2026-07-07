@@ -867,7 +867,6 @@ function updateSolfeggioFrequencies() {
 
 
 /* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
-/* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
 let isAudioUnlocked = false;
 
 function unlockAudio() {
@@ -880,7 +879,7 @@ function unlockAudio() {
   const ctx = audioCtx;
   if (!ctx) return;
 
-  // 2. 同期的コールスタック内で無音のダミー音を即座に生成して再生
+  // 2. 同期的コールスタック内で無音のHTML5 Audioおよびオシレーターを同期再生して物理スピーカーを強制開放
   playDummySound(ctx);
 
   // 3. 非同期の.thenを一切挟まず、同一の同期的スコープ内で直接アンビエント音（オシレーター）を生成して接続する
@@ -899,6 +898,15 @@ function unlockAudio() {
 
 function playDummySound(ctx) {
   try {
+    // 【iOS Safari専用ハック】: 短い無音のMP3データを持つHTML5 Audio要素を生成・即時再生する
+    // iOSはWeb Audio APIよりもHTML5 Audio要素（<audio>）の再生に対するアンロックの方が非常に甘いため、
+    // ユーザー操作の同期的イベントハンドラでこれを再生すると、ハードウェアスピーカーが強制的に開放されます。
+    const audio = new Audio();
+    // 1ドット（無音）のmp3データ
+    audio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGFtZTMuOTguNFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+    audio.play().catch(() => {});
+
+    // Web Audio側のダミー音も同時に再生
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
