@@ -722,19 +722,36 @@ let solfeggioLFOs = [];
 let solfeggioNodes = [];
 let solfeggioFilterNode = null;
 
+let isResuming = false; // resume()の多重呼び出し防止フラグ
+
 /* 528Hzを主音とする美しい「ド・ミ・ソ・シ・レ (Cmaj9)」コーラス環境音の開始（ピンポンディレイ回路） */
 function startAmbientSolfeggio() {
-  if (!STATE.soundEnabled || solfeggioOscs.length > 0) return;
-  // ★iOS対策: getAudioCtx()を呼ばず、直接グローバルのaudioCtxを参照する
+  if (!STATE.soundEnabled) return;
+  if (!audioCtx) return; // AudioContextがなければ何もしない
+
+  // ★脳リフレクソ方式: suspendedなら resume して自分を再帰呼び出し
+  if (audioCtx.state !== 'running') {
+    if (!isResuming) {
+      isResuming = true;
+      audioCtx.resume().then(() => {
+        isResuming = false;
+        stopAmbientSolfeggio(); // 古いノードを確実に破棄
+        startAmbientSolfeggio(); // 自己再帰で再試行
+      }).catch(() => { isResuming = false; });
+    }
+    return; // suspended中は新規ノード作成に進まず抜ける
+  }
+
+  if (solfeggioOscs.length > 0) return; // すでに再生中なら何もしない
+
   const ctx = audioCtx;
-  if (!ctx || ctx.state !== 'running') return;
 
   const now = ctx.currentTime;
   try {
-    // 5声が重なるため、全体の音量は少し控えめ（0.0035）に調整して薄く包む
+    // 5声が重なるため、全体の音量は適度（0.08）に調整。1秒でフェードイン
     const solfeggioGain = ctx.createGain();
     solfeggioGain.gain.setValueAtTime(0, now);
-    solfeggioGain.gain.linearRampToValueAtTime(0.0035, now + 4.5); // 4.5秒かけてフェードイン
+    solfeggioGain.gain.linearRampToValueAtTime(0.08, now + 1.0); // 1秒でフェードイン
     solfeggioNodes.push(solfeggioGain);
     solfeggioMasterGain = solfeggioGain; // 外部から音量を動的制御できるように参照を保存
 
