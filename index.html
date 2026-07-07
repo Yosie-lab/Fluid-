@@ -867,60 +867,74 @@ function updateSolfeggioFrequencies() {
 
 
 /* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理
-   ★脳リフレクソと同じ手法: touchstart + onstatechange で確実に音を出す */
+   ★脳リフレクソ(initAudio)と完全に同じロジックで実装 */
 let isAudioUnlocked = false;
 
 function unlockAudio() {
-  if (isAudioUnlocked) return;
-
-  // 1. ユーザー操作のコールスタック内で AudioContext を初めてインスタンス化
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  if (!audioCtx || audioCtx.state === 'closed') {
-    audioCtx = new AC();
-  }
-  const ctx = audioCtx;
-
-  // 2. 無音バッファを再生してスピーカーゲートを強制開放（脳リフレクソ方式）
   try {
-    const buffer = ctx.createBuffer(1, 1, 22050);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
-  } catch (e) {}
-
-  // 3. 状態変化リスナーを設定（resume完了後に確実にアンビエント音を鳴らす）
-  //    ★これが決定的: ctx.resume()は非同期のため、直後はまだ'suspended'のことがある
-  if (!ctx._stateChangeListenerAdded) {
-    ctx._stateChangeListenerAdded = true;
-    ctx.onstatechange = () => {
-      if (ctx.state === 'running') {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (audioCtx && audioCtx.state === 'closed') {
+      audioCtx = null;
+    }
+    if (!audioCtx && AudioContextClass) {
+      audioCtx = new AudioContextClass();
+    }
+    
+    if (audioCtx) {
+      // suspended / interrupted（iOS固有）の場合は resume() を試みる
+      if (audioCtx.state !== 'running') {
+        audioCtx.resume().then(() => {
+          pregenerateCarbonatedBuffer();
+          startAmbientSolfeggio();
+        }).catch((err) => {
+          console.warn("AudioContextのresumeに失敗しました:", err);
+        });
+      } else {
+        pregenerateCarbonatedBuffer();
         startAmbientSolfeggio();
       }
-    };
+      
+      // 状態変化時の自動復旧リスナーを設定（バックグラウンドから戻った時など）
+      if (!audioCtx._stateChangeListenerAdded) {
+        audioCtx._stateChangeListenerAdded = true;
+        audioCtx.onstatechange = () => {
+          if (audioCtx.state === 'running') {
+            pregenerateCarbonatedBuffer();
+            startAmbientSolfeggio();
+          }
+        };
+      }
+      
+      // ロック解除のためのダミー無音再生（Safari向けのスロー対策として優先）
+      try {
+        const buffer = audioCtx.createBuffer(1, 1, 22050);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+      } catch (err) {
+        console.warn("ダミー音声再生に失敗しました:", err);
+      }
+    }
+    isAudioUnlocked = true;
+    removeUnlockListeners();
+  } catch (e) {
+    console.warn("Web Audio APIの初期化に失敗しました。無音で動作します:", e);
   }
-
-  // 4. resume() を呼び出す（完了はonstatechangeで受け取る）
-  ctx.resume().then(() => {
-    // .thenでも安全な環境では直接起動
-    startAmbientSolfeggio();
-  }).catch(() => {});
-
-  isAudioUnlocked = true;
-  removeUnlockListeners();
 }
 
 function removeUnlockListeners() {
   window.removeEventListener('touchstart', unlockAudio);
   window.removeEventListener('touchend', unlockAudio);
   window.removeEventListener('click', unlockAudio);
+  window.removeEventListener('mousedown', unlockAudio);
 }
 
-// touchstart（指を置いた瞬間）が最も確実なiOSのアンロックトリガー
+// 指を置いた瞬間にアンロックさせる
 window.addEventListener('touchstart', unlockAudio);
-window.addEventListener('touchend', unlockAudio);
+window.addEventListener('mousedown', unlockAudio);
 window.addEventListener('click', unlockAudio);
+window.addEventListener('touchend', unlockAudio);
 
 let flowNoiseSource = null, flowNoiseGain = null, flowNoiseActive = false;
 
@@ -3256,10 +3270,12 @@ window.addEventListener('load', () => {
     };
 
     startOverlay.addEventListener('click', handleStart);
-    startOverlay.addEventListener('touchend', (e) => {
-      e.preventDefault();
+    startOverlay.addEventListener('touchstart', (e) => {
       handleStart();
-    }, { passive: false });
+    });
+    startOverlay.addEventListener('touchend', (e) => {
+      handleStart();
+    });
   }
 });
 </script>
