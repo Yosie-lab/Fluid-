@@ -762,93 +762,113 @@ function startAmbientSolfeggio() {
 
   const now = ctx.currentTime;
   try {
-    // 5声が重なるため、全体の音量は適度（0.025）に調整して空間に溶け込む宇宙音響を演出
+    // 1. マスターゲイン（5声×2オシレーター＋リバーブの合計のため適正値に調整）
     const solfeggioGain = ctx.createGain();
     solfeggioGain.gain.setValueAtTime(0, now);
-    solfeggioGain.gain.linearRampToValueAtTime(0.025, now + 2.5); // 2.5秒でフェードイン
+    solfeggioGain.gain.linearRampToValueAtTime(0.022, now + 3.0); // 3秒かけて非常に滑らかにフェードイン
     solfeggioNodes.push(solfeggioGain);
-    solfeggioMasterGain = solfeggioGain; // 外部から音量を動的制御できるように参照を保存
+    solfeggioMasterGain = solfeggioGain;
 
-    // キンキンした高音を和らげるローパスフィルター
+    // 2. メインの音色をマイルドにするローパスフィルター
     solfeggioFilterNode = ctx.createBiquadFilter();
     solfeggioFilterNode.type = 'lowpass';
-    solfeggioFilterNode.frequency.setValueAtTime(600, now);
+    solfeggioFilterNode.frequency.setValueAtTime(420, now); // 420Hzでこもらせて角を取り、暖かみを出す
     solfeggioNodes.push(solfeggioFilterNode);
 
-    // 左右のステレオディレイ（ディープな広がりのための長めのタイム）
-    const delayL = ctx.createDelay();
-    const delayR = ctx.createDelay();
-    delayL.delayTime.setValueAtTime(0.35, now); // 350ms
-    delayR.delayTime.setValueAtTime(0.48, now); // 480ms
-    solfeggioNodes.push(delayL, delayR);
+    // 3. 【極上空間リバーブ回路】4系統の並列モジュレーション・ディレイ
+    // 遅延時間を素数比率（310ms, 470ms, 630ms, 890ms）にして、残響の密度を最大化しうねりを生む
+    const delayTimes = [0.31, 0.47, 0.63, 0.89];
+    const delayNodes = [];
+    const feedbackGains = [];
+    
+    // リバーブ全体の出力をまとめるミキサー
+    const reverbMix = ctx.createGain();
+    reverbMix.gain.setValueAtTime(0.75, now); // 残響音のミックス比
+    solfeggioNodes.push(reverbMix);
 
-    // フィードバックゲイン（心地よい持続: 0.62 に微増）
-    const fbL = ctx.createGain();
-    const fbR = ctx.createGain();
-    fbL.gain.setValueAtTime(0.62, now);
-    fbR.gain.setValueAtTime(0.62, now);
-    solfeggioNodes.push(fbL, fbR);
+    delayTimes.forEach((time, idx) => {
+      const delay = ctx.createDelay(2.0);
+      delay.delayTime.setValueAtTime(time, now);
 
-    // 交差フィードバック（ピンポン効果を最大化: 0.28 に微増）
-    const crossL = ctx.createGain();
-    const crossR = ctx.createGain();
-    crossL.gain.setValueAtTime(0.28, now);
-    crossR.gain.setValueAtTime(0.28, now);
-    solfeggioNodes.push(crossL, crossR);
+      // ディレイタイムをゆっくり揺らすLFO（ディレイ・コーラス）で空間に奥行きを出す
+      const delayLFO = ctx.createOscillator();
+      const delayLFOGain = ctx.createGain();
+      delayLFO.type = 'sine';
+      delayLFO.frequency.setValueAtTime(0.08 + idx * 0.03, now); // 0.08Hz〜0.17Hzの超低速
+      delayLFOGain.gain.setValueAtTime(0.003, now); // ±3msのディレイタイム変調
 
-    // ミックスゲイン
-    const directGain = ctx.createGain();
-    directGain.gain.setValueAtTime(0.35, now); // 直接音は控えめにして輪郭をぼかす
-    solfeggioNodes.push(directGain);
+      delayLFO.connect(delayLFOGain);
+      delayLFOGain.connect(delay.delayTime);
+      delayLFO.start(now);
 
-    const revMix = ctx.createGain();
-    revMix.gain.setValueAtTime(0.85, now); // 遅延反響音を85%ミックス
-    solfeggioNodes.push(revMix);
+      solfeggioLFOs.push(delayLFO);
+      solfeggioNodes.push(delayLFOGain, delay);
 
-    // 接続処理
+      // フィードバックゲイン（長く心地よい宇宙的残響）
+      const fb = ctx.createGain();
+      fb.gain.setValueAtTime(0.68, now); // 68%の減衰フィードバック
+      solfeggioNodes.push(fb);
+
+      // 接続
+      delay.connect(fb);
+      fb.connect(delay); // フィードバックループ
+
+      delayNodes.push(delay);
+      feedbackGains.push(fb);
+    });
+
+    // 入力信号を4つのディレイラインに並列接続
     solfeggioGain.connect(solfeggioFilterNode);
+    
+    // 直接音（ドライ）の出力
+    const directGain = ctx.createGain();
+    directGain.gain.setValueAtTime(0.38, now);
     solfeggioFilterNode.connect(directGain);
     directGain.connect(ctx.destination);
+    solfeggioNodes.push(directGain);
 
-    // フィルタ音をディレイ回路へ送る
-    solfeggioFilterNode.connect(delayL);
-    solfeggioFilterNode.connect(delayR);
+    // 反響音（ウェット）をディレイマトリクスへ送信
+    delayNodes.forEach((delay, idx) => {
+      solfeggioFilterNode.connect(delay);
+      
+      // 隣り合うディレイライン同士を少しだけ交差接続させて豊かな反射音を合成
+      const crossIdx = (idx + 1) % delayNodes.length;
+      const crossGain = ctx.createGain();
+      crossGain.gain.setValueAtTime(0.22, now);
+      delay.connect(crossGain);
+      crossGain.connect(delayNodes[crossIdx]);
+      solfeggioNodes.push(crossGain);
 
-    delayL.connect(fbL); fbL.connect(delayL);
-    delayR.connect(fbR); fbR.connect(delayR);
+      // ミキサーへ出力
+      delay.connect(reverbMix);
+    });
 
-    delayL.connect(crossL); crossL.connect(delayR);
-    delayR.connect(crossR); crossR.connect(delayL);
+    reverbMix.connect(ctx.destination);
 
-    delayL.connect(revMix); delayR.connect(revMix);
-
-    revMix.connect(ctx.destination);
-
-    // Cmaj9和音構成（ド・ミ・ソ・シ・レ）
-    // 主音のfreqを基準として、純正律に近い比率で美しい和声を構成
+    // 4. 【ド・ミ・ソ・シ・レ (Cmaj9)】和音構成 ＋ 聖歌隊コーラス（オクターブ倍音）
     const chord = [
-      { ratio: 1.0,   vol: 1.0,  lfoSpeed: 0.18 }, // ド (基準音)
-      { ratio: 1.25,  vol: 0.8,  lfoSpeed: 0.22 }, // ミ (1.25倍)
-      { ratio: 1.5,   vol: 0.7,  lfoSpeed: 0.15 }, // ソ (1.5倍)
-      { ratio: 1.875, vol: 0.5,  lfoSpeed: 0.26 }, // シ (1.875倍)
-      { ratio: 1.125, vol: 0.6,  lfoSpeed: 0.13 }, // レ (1.125倍)
+      { ratio: 1.0,   vol: 1.0,  lfoSpeed: 0.16 }, // ド (基準音)
+      { ratio: 1.25,  vol: 0.78, lfoSpeed: 0.20 }, // ミ (1.25倍)
+      { ratio: 1.5,   vol: 0.68, lfoSpeed: 0.14 }, // ソ (1.5倍)
+      { ratio: 1.875, vol: 0.48, lfoSpeed: 0.24 }, // シ (1.875倍)
+      { ratio: 1.125, vol: 0.58, lfoSpeed: 0.12 }, // レ (1.125倍)
     ];
 
     const baseFreq = SKINS[STATE.skinId].soundFreq;
 
     chord.forEach(tone => {
+      // --- 基音（柔らかい正弦波） ---
       const osc = ctx.createOscillator();
       const toneGain = ctx.createGain();
-      
       osc.type = 'sine';
       osc.frequency.setValueAtTime(baseFreq * tone.ratio, now);
 
-      // コーラス効果：各声の周波数を微小に揺らすLFO（変調周期をそれぞれずらす）
+      // 基音のピッチを揺らすLFO（コーラス効果）
       const lfo = ctx.createOscillator();
       const lfoGain = ctx.createGain();
       lfo.type = 'sine';
       lfo.frequency.setValueAtTime(tone.lfoSpeed, now);
-      lfoGain.gain.setValueAtTime(2.2, now); // ±2.2Hzの揺れ幅で繊細なうねり（コーラス感）を演出
+      lfoGain.gain.setValueAtTime(1.8, now); // ±1.8Hzのうねり
 
       lfo.connect(lfoGain);
       lfoGain.connect(osc.frequency);
@@ -856,16 +876,39 @@ function startAmbientSolfeggio() {
       solfeggioLFOs.push(lfo);
       solfeggioNodes.push(lfoGain);
 
-      // 各音のバランス音量を適用
-      toneGain.gain.setValueAtTime(tone.vol, now);
-      
+      toneGain.gain.setValueAtTime(tone.vol * 0.75, now);
       osc.connect(toneGain);
       toneGain.connect(solfeggioGain);
       osc.start(now);
-      
-      // iOSの停止・再起動によるロックを防ぐため、オシレーターノードと比率のペアを保存
       solfeggioOscs.push({ node: osc, ratio: tone.ratio });
       solfeggioNodes.push(toneGain);
+
+      // --- 倍音ブレンド（1オクターブ上、聖歌隊のクワイア感をシミュレート） ---
+      const overtoneOsc = ctx.createOscillator();
+      const overtoneGain = ctx.createGain();
+      overtoneOsc.type = 'sine';
+      overtoneOsc.frequency.setValueAtTime(baseFreq * tone.ratio * 2.0, now); // 1オクターブ上
+
+      // 基音と少しだけ揺らぎの位相をずらしたLFO変調
+      const overtoneLFO = ctx.createOscillator();
+      const overtoneLFOGain = ctx.createGain();
+      overtoneLFO.type = 'sine';
+      overtoneLFO.frequency.setValueAtTime(tone.lfoSpeed * 1.15, now); // 周期を僅かにずらす
+      overtoneLFOGain.gain.setValueAtTime(1.2, now);
+
+      overtoneLFO.connect(overtoneLFOGain);
+      overtoneLFOGain.connect(overtoneOsc.frequency);
+      overtoneLFO.start(now);
+      solfeggioLFOs.push(overtoneLFO);
+      solfeggioNodes.push(overtoneLFOGain);
+
+      overtoneGain.gain.setValueAtTime(tone.vol * 0.14, now); // 倍音は控えめにブレンド（元の約14%）
+      overtoneOsc.connect(overtoneGain);
+      overtoneGain.connect(solfeggioGain);
+      overtoneOsc.start(now);
+      
+      solfeggioOscs.push({ node: overtoneOsc, ratio: tone.ratio * 2.0 });
+      solfeggioNodes.push(overtoneGain);
     });
 
   } catch (e) {
