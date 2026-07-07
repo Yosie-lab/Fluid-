@@ -866,67 +866,61 @@ function updateSolfeggioFrequencies() {
 
 
 
-/* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理 */
+/* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理
+   ★脳リフレクソと同じ手法: touchstart + onstatechange で確実に音を出す */
 let isAudioUnlocked = false;
 
 function unlockAudio() {
   if (isAudioUnlocked) return;
 
-  // 1. 同期的イベントハンドラ内で初めて AudioContext をインスタンス化する（これより前だとブロックされる）
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // 1. ユーザー操作のコールスタック内で AudioContext を初めてインスタンス化
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new AC();
   }
   const ctx = audioCtx;
-  if (!ctx) return;
 
-  // 2. 同期的コールスタック内で無音のHTML5 Audioおよびオシレーターを同期再生して物理スピーカーを強制開放
-  playDummySound(ctx);
-
-  // 3. 非同期の.thenを一切挟まず、同一の同期的スコープ内で直接アンビエント音（オシレーター）を生成して接続する
-  startAmbientSolfeggio();
-
-  // 4. 同期的に resume() を呼び出してコンテキストを稼働状態にする
+  // 2. 無音バッファを再生してスピーカーゲートを強制開放（脳リフレクソ方式）
   try {
-    ctx.resume();
-  } catch (e) {
-    console.warn("Direct resume failed, using fallback:", e);
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+  } catch (e) {}
+
+  // 3. 状態変化リスナーを設定（resume完了後に確実にアンビエント音を鳴らす）
+  //    ★これが決定的: ctx.resume()は非同期のため、直後はまだ'suspended'のことがある
+  if (!ctx._stateChangeListenerAdded) {
+    ctx._stateChangeListenerAdded = true;
+    ctx.onstatechange = () => {
+      if (ctx.state === 'running') {
+        startAmbientSolfeggio();
+      }
+    };
   }
+
+  // 4. resume() を呼び出す（完了はonstatechangeで受け取る）
+  ctx.resume().then(() => {
+    // .thenでも安全な環境では直接起動
+    startAmbientSolfeggio();
+  }).catch(() => {});
 
   isAudioUnlocked = true;
   removeUnlockListeners();
 }
 
-function playDummySound(ctx) {
-  try {
-    // 【iOS Safari専用ハック】: 短い無音のMP3データを持つHTML5 Audio要素を生成・即時再生する
-    // iOSはWeb Audio APIよりもHTML5 Audio要素（<audio>）の再生に対するアンロックの方が非常に甘いため、
-    // ユーザー操作の同期的イベントハンドラでこれを再生すると、ハードウェアスピーカーが強制的に開放されます。
-    const audio = new Audio();
-    // 1ドット（無音）のmp3データ
-    audio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGFtZTMuOTguNFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
-    audio.play().catch(() => {});
-
-    // Web Audio側のダミー音も同時に再生
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 220;
-    gain.gain.value = 0.000001; 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(0);
-    osc.stop(0.01);
-  } catch (e) {}
-}
-
 function removeUnlockListeners() {
-  window.removeEventListener('click', unlockAudio);
+  window.removeEventListener('touchstart', unlockAudio);
   window.removeEventListener('touchend', unlockAudio);
+  window.removeEventListener('click', unlockAudio);
 }
 
-// iOSでは click と、タッチを離した瞬間(touchend)が最も確実にアンロックトリガーとして機能します
-window.addEventListener('click', unlockAudio);
+// touchstart（指を置いた瞬間）が最も確実なiOSのアンロックトリガー
+window.addEventListener('touchstart', unlockAudio);
 window.addEventListener('touchend', unlockAudio);
+window.addEventListener('click', unlockAudio);
 
 let flowNoiseSource = null, flowNoiseGain = null, flowNoiseActive = false;
 
