@@ -1183,6 +1183,64 @@ function playChimeSound(baseFreq) {
   });
 }
 
+/* 全満開時（3つ目の結晶開花）の特別でおしゃれなゴージャスチャイム音 */
+function playSpecialChimeSound(baseFreq) {
+  if (!STATE.soundEnabled) return;
+  const ctx = audioCtx;
+  if (!ctx || ctx.state !== 'running') return;
+
+  const now = ctx.currentTime;
+  const ref = (baseFreq || 300) * 4;
+
+  // おしゃれでゴージャスなテンションコード（メジャー9th/11thなど）の上昇＆下降アルペジオ（10音）
+  const ratios = [1.0, 1.25, 1.5, 1.875, 2.25, 2.667, 3.0, 3.75, 4.5, 5.0];
+  
+  ratios.forEach((ratio, idx) => {
+    // アルペジオのディレイ（少し細かくしてキラキラ感を出す）
+    const delayTime = idx * 0.05;
+    const freq = ref * ratio;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now + delayTime);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(freq, now + delayTime);
+    filter.Q.setValueAtTime(1.5, now + delayTime);
+
+    // パン（左右交互に美しく広がるステレオ感）
+    let panner = null;
+    if (ctx.createStereoPanner) {
+      panner = ctx.createStereoPanner();
+      // 交互に左・右へ大きく振る (-0.75 〜 0.75)
+      const panVal = (idx % 2 === 0) ? -0.75 : 0.75;
+      panner.pan.setValueAtTime(panVal, now + delayTime);
+    }
+
+    gain.gain.setValueAtTime(0, now + delayTime);
+    // 音数が多く広がりがあるため、個々の音量を控えめにして透明感を出す
+    gain.gain.linearRampToValueAtTime(0.0035, now + delayTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.5);
+
+    osc.connect(filter);
+    filter.connect(gain);
+
+    if (panner) {
+      gain.connect(panner);
+      panner.connect(ctx.destination);
+    } else {
+      gain.connect(ctx.destination);
+    }
+
+    osc.start(now + delayTime);
+    osc.stop(now + delayTime + 2.5);
+  });
+}
+
+
 /* クリア時の美しい和音 */
 function playClearChord() {
   if (!STATE.soundEnabled) return;
@@ -1790,9 +1848,19 @@ class CrystalNucleus {
     this.activated   = true;
     this.activatedAt = now;
     lastActivationTime = now;
+
+    // 現在の開花した総数をチェック
+    const currentActivatedCount = crystalNuclei.filter(n => n.activated).length;
+    const isLastOne = (currentActivatedCount === crystalNuclei.length && crystalNuclei.length > 0);
+
     vibrateClear(); // 完全開花時の強めのハプティクス
     playClearChord(); // 美しいクリア和音を重ねる
-    playChimeSound(this.freq); // 結晶化してBloomするごとにチャイム音を鳴らす
+
+    if (isLastOne) {
+      playSpecialChimeSound(this.freq); // 3つ目の結晶開花時はゴージャスなチャイム音
+    } else {
+      playChimeSound(this.freq); // 結晶化してBloomするごとにチャイム音を鳴らす
+    }
 
     // 開花ボーナス（5倍に強化）：花（結晶核）の周囲から新しい流動粒子がブワッと全面に美しく大噴出する！
     // 動作が重くなるのを防ぎつつ、十分な「粒子筋」を噴出させるため上限を大幅に引き上げ（1000個）
@@ -1847,11 +1915,8 @@ class CrystalNucleus {
       });
     }
 
-    // 現在の開花した総数をチェック
-    const currentActivatedCount = crystalNuclei.filter(n => n.activated).length;
-
     // 3つ目のbloom（全て満開）時の特別演出
-    if (currentActivatedCount === crystalNuclei.length && crystalNuclei.length > 0) {
+    if (isLastOne) {
       // 1. 全開花時のスーパー流れ星をダイナミックに流す（最初の2本は即時）
       spawnBackgroundShootingStar(true);
       setTimeout(() => { spawnBackgroundShootingStar(true); }, 150);
