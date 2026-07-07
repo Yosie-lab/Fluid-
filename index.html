@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Spacey Bloom — 宇宙と結晶の癒しゲーム</title>
   <meta name="description" content="宇宙の流動体を導き、星の結晶を咲かせる。脳を解放する究極の癒しゲーム Spacey Bloom。">
+  <script>
+    // iOSでのデバッグを容易にするためエラーを画面上にオーバーレイ表示
+    window.onerror = function(message, source, lineno, colno, error) {
+      const errDiv = document.createElement('div');
+      errDiv.style.cssText = 'position:fixed;top:10px;left:10px;width:calc(100% - 20px);max-height:300px;background:rgba(220,38,38,0.95);color:#fff;padding:15px;border-radius:10px;z-index:999999;font-family:monospace;font-size:11px;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,0.5);line-height:1.4;';
+      errDiv.innerHTML = '<strong>[JS Runtime Error]</strong><br>' + message + '<br><small>Location: ' + source + ':' + lineno + ':' + colno + '</small>' + (error && error.stack ? '<br><pre style="margin-top:5px;white-space:pre-wrap;font-size:10px;opacity:0.8;">' + error.stack + '</pre>' : '');
+      document.body.appendChild(errDiv);
+      return false;
+    };
+  </script>
   <!-- Google Fonts Outfit -->
   <!-- TODO(security): CDN依存を削減するためにフォントをローカルホスティングに移行することを検討してください -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -868,8 +878,9 @@ function updateSolfeggioFrequencies() {
 
 /* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理
    ★脳リフレクソ(initAudio)と完全に同じロジックで実装 */
-let isAudioUnlocked = false;
-
+/* iOS (iPhone) Safari の音声保護ロックを確実に解除する処理
+   ★脳リフレクソと同じく、タッチやクリックのたびに何度でも呼び出し可能にし、
+   もし音声コンテキストが停止(suspended)していれば常に同期的に resume を試みる。 */
 function unlockAudio() {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -905,32 +916,29 @@ function unlockAudio() {
         };
       }
       
-      // ロック解除のためのダミー無音再生（Safari向けのスロー対策として優先）
+      // ロック解除のためのダミー無音再生
       try {
         const buffer = audioCtx.createBuffer(1, 1, 22050);
-        const source = audioCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioCtx.destination);
-        source.start(0);
+        const source = ctx => {
+          const src = ctx.createBufferSource();
+          src.buffer = buffer;
+          src.connect(ctx.destination);
+          src.start(0);
+        };
+        source(audioCtx);
       } catch (err) {
         console.warn("ダミー音声再生に失敗しました:", err);
       }
     }
-    isAudioUnlocked = true;
-    removeUnlockListeners();
   } catch (e) {
     console.warn("Web Audio APIの初期化に失敗しました。無音で動作します:", e);
   }
 }
 
-function removeUnlockListeners() {
-  window.removeEventListener('touchstart', unlockAudio);
-  window.removeEventListener('touchend', unlockAudio);
-  window.removeEventListener('click', unlockAudio);
-  window.removeEventListener('mousedown', unlockAudio);
-}
+// リスナー解除はせず、常にユーザー操作を監視して復旧に備える
+function removeUnlockListeners() {}
 
-// 指を置いた瞬間にアンロックさせる
+// 画面全体の操作イベントに登録
 window.addEventListener('touchstart', unlockAudio);
 window.addEventListener('mousedown', unlockAudio);
 window.addEventListener('click', unlockAudio);
