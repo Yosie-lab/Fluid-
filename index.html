@@ -1166,7 +1166,7 @@ function playChimeSound(baseFreq) {
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    gain.gain.linearRampToValueAtTime(0.006, now + delayTime + 0.015);
+    gain.gain.linearRampToValueAtTime(0.0018, now + delayTime + 0.015);
     // すぐに消えるが、一部をディレイやリバーブへ送り込んで美しい余韻を残す
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 1.2);
 
