@@ -1236,8 +1236,8 @@ function playSpecialChimeSound(baseFreq) {
   const ratios = [1.0, 1.125, 1.25, 1.333, 1.5, 1.667, 1.875, 2.0];
   
   ratios.forEach((ratio, idx) => {
-    // 規則的なディレイ（0.403秒間隔）で美しい上昇アルペジオにする
-    const delayTime = idx * 0.403;
+    // 規則的なディレイ（0.282秒間隔）で美しい上昇アルペジオにする
+    const delayTime = idx * 0.282;
     const freq = ref * ratio;
 
     const osc = ctx.createOscillator();
@@ -1263,8 +1263,8 @@ function playSpecialChimeSound(baseFreq) {
     gain.gain.setValueAtTime(0.0001, now + delayTime);
     // 音量ゲイン (0.024)
     gain.gain.exponentialRampToValueAtTime(0.024, now + delayTime + 0.015);
-    // 美しい余韻を残すため4.5秒かけて減衰
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 4.5);
+    // 美しい余韻を残すため3.5秒かけて減衰
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 3.5);
 
     osc.connect(filter);
     filter.connect(gain);
@@ -1277,7 +1277,7 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     osc.start(now + delayTime);
-    osc.stop(now + delayTime + 4.5);
+    osc.stop(now + delayTime + 3.5);
   });
 }
 
