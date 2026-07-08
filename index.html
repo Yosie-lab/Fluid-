@@ -1217,7 +1217,7 @@ function playChimeSound(baseFreq) {
   });
 }
 
-/* 全満開時（3つ目の結晶開花）の特別でおしゃれなゴージャスチャイム音 */
+/* 全満開時（3つ目の結晶開花）の特別でおしゃれなゴージャスチャイム音（チャリチャリーン音） */
 function playSpecialChimeSound(baseFreq) {
   if (!STATE.soundEnabled) return;
   const ctx = audioCtx;
@@ -1225,18 +1225,26 @@ function playSpecialChimeSound(baseFreq) {
 
   const now = ctx.currentTime;
   
-  let ref = 600;
+  // チャリチャリーン用に高めの基準周波数（baseFreqの2.5倍）を設定
+  let ref = 800;
   if (baseFreq && typeof baseFreq === 'number' && isFinite(baseFreq)) {
-    ref = baseFreq * 2;
+    ref = baseFreq * 2.5; 
   }
 
-  // おしゃれでゴージャスなテンションコード（メジャー9th/11thなど）の上昇＆下降アルペジオ（10音）
-  const ratios = [1.0, 1.25, 1.5, 1.875, 2.25, 2.667, 3.0, 3.75, 4.5, 5.0];
+  // 14個の細かく高密度な高音比率（煌びやかなウィンドチャイム効果）
+  const ratios = [
+    1.0, 1.2, 1.35, 1.5, 1.8, 2.0, 
+    2.25, 2.5, 2.7, 3.0, 3.6, 4.0, 4.5, 5.0
+  ];
   
   ratios.forEach((ratio, idx) => {
-    // アルペジオのディレイ（少し細かくしてキラキラ感を出す）
-    const delayTime = idx * 0.05;
+    // 非常に細かい時間差（22ms）と、わずかなランダムゆらぎで「チャリチャリ」感を表現
+    const jitter = Math.random() * 0.012;
+    const delayTime = idx * 0.022 + jitter;
     const freq = ref * ratio;
+
+    // ナイキスト周波数を考慮して高音の上限をリミット
+    if (freq > 16000) return;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -1247,20 +1255,21 @@ function playSpecialChimeSound(baseFreq) {
 
     filter.type = 'bandpass';
     filter.frequency.setValueAtTime(freq, now + delayTime);
-    filter.Q.setValueAtTime(1.5, now + delayTime);
+    filter.Q.setValueAtTime(2.5, now + delayTime); // 高めのQで金属音の鋭さを出す
 
-    // パン（左右交互に美しく広がるステレオ感）
+    // ステレオパンを左右に美しくランダム散布
     let panner = null;
     if (ctx.createStereoPanner) {
       panner = ctx.createStereoPanner();
-      // 交互に左・右へ大きく振る (-0.75 〜 0.75)
-      const panVal = (idx % 2 === 0) ? -0.75 : 0.75;
+      const panVal = -0.85 + Math.random() * 1.7;
       panner.pan.setValueAtTime(panVal, now + delayTime);
     }
 
     gain.gain.setValueAtTime(0.0001, now + delayTime);
-    gain.gain.exponentialRampToValueAtTime(0.02, now + delayTime + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.5);
+    gain.gain.exponentialRampToValueAtTime(0.016, now + delayTime + 0.008);
+    // 0.4〜0.8秒で素早く減衰させて粒立ちを作る
+    const duration = 0.4 + Math.random() * 0.4;
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + duration);
 
     osc.connect(filter);
     filter.connect(gain);
@@ -1273,7 +1282,7 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     osc.start(now + delayTime);
-    osc.stop(now + delayTime + 2.5);
+    osc.stop(now + delayTime + duration);
   });
 }
 
