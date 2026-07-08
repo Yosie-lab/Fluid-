@@ -1217,7 +1217,7 @@ function playChimeSound(baseFreq) {
   });
 }
 
-/* 全満開時（3つ目の結晶開花）の特別でおしゃれなゴージャスチャイム音（チャリチャリーン音） */
+/* 全満開時（3つ目の結晶開花）の特別でおしゃれなゴージャスチャイム音（ドレミファソラシド） */
 function playSpecialChimeSound(baseFreq) {
   if (!STATE.soundEnabled) return;
   const ctx = audioCtx;
@@ -1225,26 +1225,20 @@ function playSpecialChimeSound(baseFreq) {
 
   const now = ctx.currentTime;
   
-  // チャリチャリーン用に高めの基準周波数（baseFreqの2.5倍）を設定
-  let ref = 800;
+  // 結晶核の周波数を2倍にして、チャイムとして最も美しい中高音域の「ド」にする
+  let ref = 523.25; // C5 (デフォルト)
   if (baseFreq && typeof baseFreq === 'number' && isFinite(baseFreq)) {
-    ref = baseFreq * 2.5; 
+    ref = baseFreq * 2; 
   }
 
-  // 14個の細かく高密度な高音比率（煌びやかなウィンドチャイム効果）
-  const ratios = [
-    1.0, 1.2, 1.35, 1.5, 1.8, 2.0, 
-    2.25, 2.5, 2.7, 3.0, 3.6, 4.0, 4.5, 5.0
-  ];
+  // ドレミファソラシドの周波数比率（純正律に近い美しい響き）
+  // ド, レ, ミ, ファ, ソ, ラ, シ, ド(オクターブ上)
+  const ratios = [1.0, 1.125, 1.25, 1.333, 1.5, 1.667, 1.875, 2.0];
   
   ratios.forEach((ratio, idx) => {
-    // 非常に細かい時間差（22ms）と、わずかなランダムゆらぎで「チャリチャリ」感を表現
-    const jitter = Math.random() * 0.012;
-    const delayTime = idx * 0.022 + jitter;
+    // 規則的なディレイ（0.08秒間隔）で美しい上昇アルペジオにする
+    const delayTime = idx * 0.08;
     const freq = ref * ratio;
-
-    // ナイキスト周波数を考慮して高音の上限をリミット
-    if (freq > 16000) return;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -1255,21 +1249,22 @@ function playSpecialChimeSound(baseFreq) {
 
     filter.type = 'bandpass';
     filter.frequency.setValueAtTime(freq, now + delayTime);
-    filter.Q.setValueAtTime(2.5, now + delayTime); // 高めのQで金属音の鋭さを出す
+    filter.Q.setValueAtTime(1.5, now + delayTime);
 
-    // ステレオパンを左右に美しくランダム散布
+    // ステレオパンを左から右へ流す（ドが左から始まり、シ・ドで右へ抜けていく非常にオシャレなステレオ感）
     let panner = null;
     if (ctx.createStereoPanner) {
       panner = ctx.createStereoPanner();
-      const panVal = -0.85 + Math.random() * 1.7;
+      // idx 0(左端 -0.8) から idx 7(右端 0.8) まで段階的に振る
+      const panVal = -0.8 + (idx * 0.228);
       panner.pan.setValueAtTime(panVal, now + delayTime);
     }
 
     gain.gain.setValueAtTime(0.0001, now + delayTime);
-    gain.gain.exponentialRampToValueAtTime(0.038, now + delayTime + 0.008);
-    // 0.4〜0.8秒で素早く減衰させて粒立ちを作る
-    const duration = 0.4 + Math.random() * 0.4;
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + duration);
+    // 音量ゲイン (0.024)
+    gain.gain.exponentialRampToValueAtTime(0.024, now + delayTime + 0.015);
+    // 美しい余韻を残すため2.0秒かけて減衰
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.0);
 
     osc.connect(filter);
     filter.connect(gain);
@@ -1282,7 +1277,7 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     osc.start(now + delayTime);
-    osc.stop(now + delayTime + duration);
+    osc.stop(now + delayTime + 2.0);
   });
 }
 
