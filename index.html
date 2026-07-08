@@ -1203,8 +1203,8 @@ function playChimeSound(baseFreq) {
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.04から0.015へ引き下げ）
-    gain.gain.linearRampToValueAtTime(0.015, now + delayTime + 0.015);
+    // 音量バランス調整（0.015から0.009へ引き下げ）
+    gain.gain.linearRampToValueAtTime(0.009, now + delayTime + 0.015);
     // すぐに消えるが、一部をディレイやリバーブへ送り込んで美しい余韻を残す
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 1.2);
 
@@ -1263,8 +1263,8 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.06から0.025へ引き下げ）
-    gain.gain.linearRampToValueAtTime(0.025, now + delayTime + 0.015);
+    // 音量バランス調整（0.025から0.016へ引き下げ）
+    gain.gain.linearRampToValueAtTime(0.016, now + delayTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.5);
 
     osc.connect(filter);
@@ -1295,7 +1295,8 @@ function playClearChord() {
     const gain = ctx.createGain();
     osc.type = 'sine'; osc.frequency.value = base * ratio;
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.08 + i * 0.06);
+    // 音量バランス調整（ファーン音：0.12から0.05へ引き下げ）
+    gain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.08 + i * 0.06);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(); osc.stop(ctx.currentTime + 3.5);
