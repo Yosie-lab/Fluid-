@@ -1203,7 +1203,7 @@ function playChimeSound(baseFreq) {
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
     gain.gain.setValueAtTime(0.0001, now + delayTime);
-    gain.gain.exponentialRampToValueAtTime(0.009, now + delayTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.010, now + delayTime + 0.015);
     // 緩やかに美しく残響させる単一の指数減衰スケジュール
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.2);
 
@@ -1236,8 +1236,8 @@ function playSpecialChimeSound(baseFreq) {
   const ratios = [1.0, 1.125, 1.25, 1.333, 1.5, 1.667, 1.875, 2.0];
   
   ratios.forEach((ratio, idx) => {
-    // 規則的なディレイ（0.23秒間隔）で美しい上昇アルペジオにする
-    const delayTime = idx * 0.23;
+    // 規則的なディレイ（0.25秒間隔）で美しい上昇アルペジオにする
+    const delayTime = idx * 0.25;
     const freq = ref * ratio;
 
     const osc = ctx.createOscillator();
@@ -1263,8 +1263,8 @@ function playSpecialChimeSound(baseFreq) {
     gain.gain.setValueAtTime(0.0001, now + delayTime);
     // 音量ゲイン (0.024)
     gain.gain.exponentialRampToValueAtTime(0.024, now + delayTime + 0.015);
-    // 美しい余韻を残すため3.0秒かけて減衰
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 3.0);
+    // 美しい余韻を残すため3.3秒かけて減衰
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 3.3);
 
     osc.connect(filter);
     filter.connect(gain);
@@ -1277,7 +1277,7 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     osc.start(now + delayTime);
-    osc.stop(now + delayTime + 3.0);
+    osc.stop(now + delayTime + 3.3);
   });
 }
 
@@ -3102,7 +3102,7 @@ function triggerClear() {
     clr.style.opacity      = '';
     clr.style.pointerEvents = '';
     clr.classList.add('show');
-  }, 2000);
+  }, 2400);
 
   /* 自動ループタイマーは廃止し、ユーザーが手動で「もう一度」を押すまで無限に眺められるようにします */
 }
