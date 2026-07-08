@@ -1203,8 +1203,8 @@ function playChimeSound(baseFreq) {
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.015から0.009へ引き下げ）
-    gain.gain.linearRampToValueAtTime(0.009, now + delayTime + 0.015);
+    // 音量バランス調整（0.009から0.012へ調整）
+    gain.gain.linearRampToValueAtTime(0.012, now + delayTime + 0.015);
     // すぐに消えるが、一部をディレイやリバーブへ送り込んで美しい余韻を残す
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 1.2);
 
@@ -1263,8 +1263,8 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.025から0.016へ引き下げ）
-    gain.gain.linearRampToValueAtTime(0.016, now + delayTime + 0.015);
+    // 音量バランス調整（0.016から0.02へ調整）
+    gain.gain.linearRampToValueAtTime(0.02, now + delayTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.5);
 
     osc.connect(filter);
@@ -1415,7 +1415,7 @@ function playCarbonatedSound(originX) {
 
     // 出力ゲイン（最終音量微調整用 — 適度に包み込む音量）
     const outputGain = ctx.createGain();
-    outputGain.gain.setValueAtTime(1.0, now);
+    outputGain.gain.setValueAtTime(1.25, now);
     outputGain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
 
     filterNode.connect(outputGain);
@@ -1423,12 +1423,12 @@ function playCarbonatedSound(originX) {
 
     if (delayPannerL && delayPannerR) {
       delayFilterL.connect(delayPannerL);
-      delayPannerL.connect(ctx.destination);
+      delayPannerL.connect(outputGain);
       delayFilterR.connect(delayPannerR);
-      delayPannerR.connect(ctx.destination);
+      delayPannerR.connect(outputGain);
     } else {
-      delayFilterL.connect(ctx.destination);
-      delayFilterR.connect(ctx.destination);
+      delayFilterL.connect(outputGain);
+      delayFilterR.connect(outputGain);
     }
 
     noiseNode.start(now);
