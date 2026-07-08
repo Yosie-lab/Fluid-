@@ -1203,8 +1203,8 @@ function playChimeSound(baseFreq) {
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.016から0.04へ引き上げ）
-    gain.gain.linearRampToValueAtTime(0.04, now + delayTime + 0.015);
+    // 音量バランス調整（0.04から0.015へ引き下げ）
+    gain.gain.linearRampToValueAtTime(0.015, now + delayTime + 0.015);
     // すぐに消えるが、一部をディレイやリバーブへ送り込んで美しい余韻を残す
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 1.2);
 
@@ -1263,8 +1263,8 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.024から0.06へ引き上げ）
-    gain.gain.linearRampToValueAtTime(0.06, now + delayTime + 0.015);
+    // 音量バランス調整（0.06から0.025へ引き下げ）
+    gain.gain.linearRampToValueAtTime(0.025, now + delayTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.5);
 
     osc.connect(filter);
