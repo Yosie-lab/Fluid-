@@ -1203,7 +1203,7 @@ function playChimeSound(baseFreq) {
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
     gain.gain.setValueAtTime(0.0001, now + delayTime);
-    gain.gain.exponentialRampToValueAtTime(0.0105, now + delayTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0113, now + delayTime + 0.015);
     // 緩やかに美しく残響させる単一の指数減衰スケジュール
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.2);
 
