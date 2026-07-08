@@ -478,49 +478,63 @@
     /* 結晶型のオシャレなスタートボタン */
     .start-btn-wrapper {
       position: relative;
-      width: 170px;
-      height: 106px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, rgba(0, 245, 255, 0.4), rgba(192, 132, 252, 0.4));
-      clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-      filter: drop-shadow(0 0 15px rgba(0, 245, 255, 0.35));
-      margin-top: 24px;
-    }
-    .start-btn-wrapper:hover {
-      background: linear-gradient(135deg, rgba(0, 245, 255, 0.95), rgba(192, 132, 252, 0.95));
-      filter: drop-shadow(0 0 25px rgba(0, 245, 255, 0.65)) drop-shadow(0 0 45px rgba(192, 132, 252, 0.45));
-      transform: scale(1.05) rotate(3deg);
+      margin-top: 30px;
     }
     .start-btn-premium {
       font-family: 'Outfit', sans-serif;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       font-weight: 300;
-      letter-spacing: 0.35em;
-      color: #ffffff;
-      border: none;
-      width: 166px;
-      height: 102px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle, rgba(0, 245, 255, 0.3) 0%, rgba(192, 132, 252, 0.15) 60%, rgba(8, 14, 24, 0.85) 100%);
-      clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+      letter-spacing: 0.5em;
+      color: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 16px 48px;
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
       cursor: pointer;
       user-select: none;
       -webkit-user-select: none;
-      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-      text-indent: 0.35em;
+      transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      text-indent: 0.5em; /* レタースペース補正 */
     }
-    .start-btn-wrapper:hover .start-btn-premium {
-      background: radial-gradient(circle, rgba(0, 245, 255, 0.45) 0%, rgba(192, 132, 252, 0.3) 70%, rgba(8, 14, 24, 0.95) 100%);
-      letter-spacing: 0.45em;
-      text-indent: 0.45em;
+    /* ボタンの前に付くキラキラ光る結晶風のシンボル */
+    .start-btn-premium::before {
+      content: '✦';
+      font-size: 0.95rem;
+      color: #00f5ff;
+      text-shadow: 0 0 8px #00f5ff;
+      transition: transform 0.8s ease, color 0.5s ease;
+      display: inline-block;
+      margin-top: -2px;
     }
-    .start-btn-wrapper:active {
-      transform: scale(0.96);
+    .start-btn-premium:hover {
+      color: #ffffff;
+      border-color: rgba(0, 245, 255, 0.5);
+      background: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 12px 35px rgba(0, 245, 255, 0.2), 
+                  0 0 20px rgba(192, 132, 252, 0.15),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      letter-spacing: 0.6em;
+      text-indent: 0.6em;
+    }
+    .start-btn-premium:hover::before {
+      transform: rotate(180deg) scale(1.2);
+      color: #ffffff;
+      text-shadow: 0 0 12px #ffffff;
+    }
+    .start-btn-premium:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 15px rgba(0, 245, 255, 0.1), 
+                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transition: all 0.1s;
     }
 
   </style>
