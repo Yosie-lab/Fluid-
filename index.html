@@ -1202,19 +1202,15 @@ function playChimeSound(baseFreq) {
     filter.frequency.setValueAtTime(freq, now + delayTime);
     filter.Q.setValueAtTime(1.2, now + delayTime);
 
-    gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.009から0.012へ調整）
-    gain.gain.linearRampToValueAtTime(0.012, now + delayTime + 0.015);
-    // すぐに消えるが、一部をディレイやリバーブへ送り込んで美しい余韻を残す
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 1.2);
+    gain.gain.setValueAtTime(0.0001, now + delayTime);
+    gain.gain.exponentialRampToValueAtTime(0.012, now + delayTime + 0.015);
+    // 緩やかに美しく残響させる単一の指数減衰スケジュール
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.2);
 
     osc.connect(filter);
     filter.connect(gain);
 
     gain.connect(ctx.destination);
-
-    // リバーブを廃止する代わりに、余韻のカーブを緩やかにして美しく残響させる
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.2);
 
     osc.start(now + delayTime);
     osc.stop(now + delayTime + 2.2);
@@ -1262,9 +1258,8 @@ function playSpecialChimeSound(baseFreq) {
       panner.pan.setValueAtTime(panVal, now + delayTime);
     }
 
-    gain.gain.setValueAtTime(0, now + delayTime);
-    // 音量バランス調整（0.016から0.02へ調整）
-    gain.gain.linearRampToValueAtTime(0.02, now + delayTime + 0.015);
+    gain.gain.setValueAtTime(0.0001, now + delayTime);
+    gain.gain.exponentialRampToValueAtTime(0.02, now + delayTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + 2.5);
 
     osc.connect(filter);
