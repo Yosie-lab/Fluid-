@@ -1266,7 +1266,7 @@ function playSpecialChimeSound(baseFreq) {
     }
 
     gain.gain.setValueAtTime(0.0001, now + delayTime);
-    gain.gain.exponentialRampToValueAtTime(0.016, now + delayTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.026, now + delayTime + 0.008);
     // 0.4〜0.8秒で素早く減衰させて粒立ちを作る
     const duration = 0.4 + Math.random() * 0.4;
     gain.gain.exponentialRampToValueAtTime(0.0001, now + delayTime + duration);
